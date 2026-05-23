@@ -1,0 +1,42 @@
+# pyproject.toml — shorts_forge (게이트 비의존 구현, Increment 1)
+#
+# 추적: PRD §0/§9 · workflow.md §0/§4 · ANCHOR ①(추적성)
+# [F §3.13] 시스템/Store Python 의존 금지 — 제품은 자체 사설 인터프리터 번들.
+#   본 pyproject는 *개발* 환경용. 런타임 인터프리터 비의존은 패키징(설치기) 소관이며
+#   runtime_root_layout/LAYOUT.md 에 명시. 코드는 sys.executable/PATH python 을 호출하지 않는다.
+# [F §3.7] CPU 경로만. NVENC/CUDA 의존 패키지 절대 추가 금지(C-HW, INVARIANT #1 위반정의).
+# 라이브러리 = workflow §0 #7 *가역 기본값*(상태모델/어댑터 뒤 캡슐화), 잠금 아님.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shorts-forge"
+version = "0.1.0"
+description = "로컬 실행 전용 YouTube Shorts 자동 생성 — 게이트 비의존 구현 (Increment 1: SM-1 수직 슬라이스)"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+
+# Increment 1 런타임 의존 — 최소 표면(3.14 휠 리스크 최소화):
+#   Pillow      : 이미지 디코드/EXIF/회전 베이크 (S1, [F §3.10])
+#   imageio-ffmpeg : 번들 ffmpeg 바이너리 (S6 렌더/probe). 제품은 자체 LGPL ffmpeg 번들로 대체
+#                    — media/ffmpeg_cli.py 어댑터가 바이너리 경로 해석을 추상화(가역, workflow §0 #7).
+# numpy/librosa/scipy 의도적 비포함 — pHash 는 순수 Python DCT, S5 오디오는 무음 null-track(D2 차단).
+dependencies = [
+    "Pillow>=10.2",
+    "imageio-ffmpeg>=0.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+shorts-forge = "shorts_forge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

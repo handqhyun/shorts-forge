@@ -1,0 +1,29 @@
+# 런타임 산출물·캐시·모델 페이로드는 소스 추적 제외 (workflow §4, [F §3.2])
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+
+# 런타임 루트 모사/테스트 산출 (ProgramData 모사 — 절대 소스 아님)
+/runs/
+/work/
+/out/
+*.sqlite
+*.sqlite-*
+.run.lock
+offline.lock
+
+# 모델·음악 페이로드 (카브아웃 #1 setup fetch / D2 — 소스 저장소 비포함)
+/models/
+/music/
+
+# 테스트가 생성하는 합성 fixture (개인 미디어 절대 없음 — PRD §7 NEVER)
+/tests/_tmp/
+
+# 빌드 하니스 런타임 산출·상태(소스 아님 — schema.sql만 소스로 추적)
+/.claude/runs/
+/.claude/state/*.json

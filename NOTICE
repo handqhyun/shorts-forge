@@ -1,0 +1,22 @@
+shorts-forge — 서드파티 고지 (NOTICE) 골격
+추적: PRD C-LIC · workflow.md §2 S6/§8 · [F §3.1/§3.13]
+
+규칙(PRD C-LIC): 배포 시 미디어 처리 의존 구성요소는 copyleft 전파를
+일으키지 않는 라이선스 빌드 + 고지 동봉. 본 파일은 배포 패키징 시점에
+실제 번들 구성요소의 라이선스·고지로 채워진다(설치기 소관).
+
+== Increment 1 개발 의존 ==
+
+- Pillow — HPND License (permissive). 이미지 디코드/EXIF/회전. [F §3.10]
+- imageio-ffmpeg — BSD-2-Clause (래퍼). 번들 ffmpeg 바이너리 동반.
+  * ffmpeg 자체: 제품 배포 시 **LGPL 빌드(GPL 인코더 없음)** 로 교체하고
+    FFmpeg/libass/libunibreak 라이선스·소스오퍼를 본 NOTICE 에 동봉해야 함
+    (PRD C-LIC, [F §3.1/§3.11/§3.13]). 개발용 imageio-ffmpeg 번들 바이너리는
+    배포물이 아니다.
+
+== 배포 시 채워질 항목(플레이스홀더) ==
+
+- FFmpeg (LGPL build) — license + source offer
+- libass (>=0.17) + libunibreak — license [F §3.11]
+- 번들 한국어 폰트 (Pretendard/Noto Sans KR, OFL) — OFL.txt 동봉 [F §3.11]
+- 번들 사설 Python 런타임 — PSF License [F §3.13]

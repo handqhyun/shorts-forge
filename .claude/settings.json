@@ -1,0 +1,57 @@
+{
+  "$comment": "Build-infrastructure hooks for shorts-forge. Reference: workflow-coding.md §6 / §6.7. All hook bodies are 2-line wrappers delegating to python -m tools.<X> (P-10). Matcher is the Claude Code standard tool-name matcher only; file/command discrimination is performed inside each backing tool (F-8 resolution: no non-standard fileMatcher/commandMatcher). v0.9.8: registers §6.1-§6.6 + §6.8-§6.9 (F-7 resolution) and removes the grep/awk permission grants (F-17 resolution).",
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m tools.:*)",
+      "Bash(git diff --cached --name-only:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/sot-guardian-integrity-check.sh" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/load-context-from-sot.sh" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/sot-guardian-block.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/network-egress-whitelist.sh" },
+          { "type": "command", "command": ".claude/hooks/pre-commit-pair-check.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/code-review-and-ratchet.sh" },
+          { "type": "command", "command": ".claude/hooks/korean-translator-trigger.sh" },
+          { "type": "command", "command": ".claude/hooks/impact-trigger.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/persist-pending-decisions.sh" }
+        ]
+      }
+    ]
+  }
+}

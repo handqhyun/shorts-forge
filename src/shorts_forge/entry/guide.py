@@ -32,12 +32,12 @@ class GuideOption:
 OPTIONS: tuple[GuideOption, ...] = (
     GuideOption(
         label="풀 렌더",
-        result="입력 폴더의 사진·영상을 ≤59초 9:16 mp4 한 개와 한국어 메타초안으로 생성한다.",
+        result="입력 폴더의 사진·영상을 모아 세로형 짧은 영상 한 편(휴대폰 화면 비율·최대 약 1분)과 한국어 제목·설명 초안을 만든다.",
         command="shorts-forge run <입력_폴더>",
     ),
     GuideOption(
         label="스토리보드 미리보기 (렌더 없음)",
-        result="실제 렌더 없이 어떤 클립 순서·길이로 만들어질지 텍스트 스토리보드만 출력한다.",
+        result="실제 영상은 만들지 않고, 어떤 사진·영상이 어떤 순서·길이로 들어갈지 글로만 보여 준다.",
         command="shorts-forge run <입력_폴더> --dry-run",
     ),
 )

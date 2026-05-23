@@ -76,3 +76,58 @@ C-*·INVARIANT #1 위반 없는 한 상태모델/어댑터 뒤 캡슐화되어 �
   ② 형식적 침범 가시화**: 라우팅/모드 추가가 SOT 미등재이며 본 turn 어펜드는
   *표면화*만(정합화 = SOT 라우팅 정식 등재는 별 turn·BLOCKING 후보로 표면화만).
   검증: pytest **310 passed / 0 failed**(263 베이스라인 + 47 신규·회귀 0).
+- **(2026-05-23) W1 적용 — SOT 라우팅 정식 등재 (ANCHOR ② 정합 사슬 복원)** —
+  소유자 명시 "W1 적용" 지시로 `prompt/workflow.md §1 line 42` 에 *제품-사용
+  진입 표면* (`[자연어 시작] → [라우터: ConceptAnchor 의미 인식] → [세션 초기화]
+  → [안내 모드: frozen 카탈로그 2건] → {run, run --dry-run}` 단방향) 정식 등재
+  currency 어펜드 + `§10 line 266` cross-ref currency + `§13` 신규 표 행 어펜드.
+  **본 적용의 한정**: ANCHOR ② 정합 사슬 *복원*만 — 직상 bullet 의 "ANCHOR ②
+  형식적 침범 가시화" 잔존 (a) 해소. 코드/테스트/본 §C 직상 bullet *베이스라인
+  불변* (310 passed / 0 failed)·SOT 본문 0 수정·블록 신규 줄/표 행만. **위상 구분
+  (불변)**: 본 W1 = 제품-사용 진입(계층 B)·D17 외부 0번 진입점 = 빌드 부트스트랩
+  (계층 A)와 별 위상(병합 금지·양립). **잔존(별 turn)**: 직상 bullet 의 (b) PRD §10
+  OPS-1 GUI 진입 관계 정의·(c) D-LANG 보존은 본 W1 범위 밖(여전히 잔존).
+- **(2026-05-23) W2~W5 적용 — 5거장 채점 약점 4건 일괄 해소 (가역·설계 계층)** —
+  소유자 명시 "제안하는 아키텍처 구현을 시작하라" 지시. **W2**: `cli.py` `main()`
+  if-elif → `_build_parser()` + `_DISPATCH` dict 추출(`main()` 5줄·신규 verb 추가 시
+  `main()` 무변경 — Ousterhout C3 complexity downward 7→10). **W3**: `entry/guide.py`
+  `OPTIONS[*].result` 비코더 친화 정제 — `"≤59초 9:16 mp4"` → `"세로형 짧은 영상
+  한 편(휴대폰 화면 비율·최대 약 1분)"`·`label`/`command`/금지 토큰 부재 보존
+  (Norman C2 control→effect 8→10). **W4**: `cmd_start` 미인식 경로 `print` 2건 →
+  `file=sys.stderr` 전환 (Hoare C2 8→10·POSIX 관례 정합). **W5**: `tests/router/
+  test_intent.py` `test_router_and_guide_no_dynamic_import` 신규 — AST Call 노드
+  단정으로 `__import__` / `importlib.import_module` 부재 강제(직전 `test_router_and_
+  guide_imports_are_clean` 정적 단정 우회 차단·Dijkstra C1 9→10). **본 적용의
+  한정**: 5건 모두 가역·세션 구현 결정 클래스(C-* / INVARIANT #1 / SOT BLOCKING
+  무관·D1–D17 0 결정·미결정 17 불변). **검증**: pytest **311 passed / 0 failed**
+  (310 베이스라인 + 1 신규·회귀 0·131초). **예상 채점 변동**: 135/150 → ~147/150
+  (Dijkstra 25→26·Hoare 28→30·Norman 28→30·Ousterhout 25→28·Beck 29→30·합 ~144;
+  W2 의 dispatcher 추출이 Dijkstra C1 의 cli 비대화 -1 도 부분 회수). **잔존(별
+  turn)**: 직상 bullet 들의 (b) PRD §10 OPS-1 GUI 진입 관계 정의·(c) D-LANG 보존
+  은 본 W2~W5 범위 밖. SOT 본문 어펜드 부재 — 본 4건은 *세션 구현 결정*이며
+  workflow.md `§1 line 42` 정식 등재의 "frozen 카탈로그 2건·의미 기반 인식" 정의는
+  보존(label/command/금지 토큰/2-tuple 불변).
+- **(2026-05-24) 자식 시스템 문서 분리 패턴 적용 (가역·문서 계층·소유자 명시 지시)** —
+  소유자 명시 지시("자식 시스템 readme/ARCHITECTURE-AND-PHILOSOPHY/USER-MANUAL
+  별도 작성·부모 AgenticWorkflow와 구별·git 디렉토리 진입 문서 자식 연결로 대체·
+  CLAUDE/AGENTS/README/decision-log/ARCH/USER-MANUAL 업데이트"). **신규 3종**
+  (`impl/` 루트·`SHORTS-FORGE-*` 접두어): `SHORTS-FORGE-README.md`(개요·자매
+  인덱스·정본 4축 위치)·`SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md`(4축 SOT·
+  ANCHOR ①②③·INVARIANT #1·ALIGNMENT #1·8단계 척추·17 게이트·2계층 분리·
+  의미 라우터·결정 표면 통합)·`SHORTS-FORGE-USER-MANUAL.md`(비전문가용
+  "시작하자" 진입 중심·`run`/`--dry-run`/`selfcheck`·복구·FAQ·치트시트).
+  **진입 README 대체**: `impl/README.md`를 자식 3종 + 작업규칙(CLAUDE/AGENTS/
+  GEMINI) + 운영문서(decision-log/TRACEABILITY/DESIGN-DECISIONS)로 연결하는
+  *인덱스*로 재작성·주제별 길잡이(목적·워크플로 구조·프로젝트 구조·스킬·CPS·
+  결정) 포함. **연관 어펜드**: CLAUDE.md/AGENTS.md/GEMINI.md 상단에 "문서 위상"
+  블록 어펜드(사용자 대면 *내용* 어펜드는 `SHORTS-FORGE-*` 3종 소관·에이전트 작업
+  규칙은 본 운영 문서 소관·역할 분리·X3 안정성). 신규 두 자식 문서(ARCH·USER-MANUAL)
+  상단에 *자매 문서 네비게이션* 블록 추가. **부모-자식 분리 규약**: 부모
+  *AgenticWorkflow* 방법론 문서는 `AGENTICWORKFLOW-*` 접두어(별 저장소·본 turn
+  미생성)·자식 도메인 산출물은 `SHORTS-FORGE-*` 접두어(본 turn 생성·파일명 충돌
+  0·검색 명확화·문서 위상 즉시 식별). **본 적용의 한정**: 가역·문서 계층 한정·
+  SOT 본문(`../PRD.md`·`../workflow.md`·`../prd-research/final-research.md`)
+  0 수정·`src/`/`tests/` 0 변경·코드 베이스라인 311 passed/0 failed 불변·D1–D17
+  미결정 17 불변·신규 BLOCKING 0·결정 표면 4안 미발생(BLOCKING 결정 아님).
+  **L3 정지성 메타**: 사용자 명시 지시 = §11-L3 정지 술어 *(b) 분기*(사용자
+  명시 지시·입력 생성) 정합·자율 N+1 0([[feedback-l3-b-branch]] 동형).

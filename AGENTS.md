@@ -3,6 +3,22 @@
 작업 규칙(ANCHOR·SOT·2계층·게이트·언어)은 [CLAUDE.md](CLAUDE.md)가 정본이다. 이
 파일은 *에이전트 구성*과 협업 규약을 다룬다.
 
+## 문서 위상 (2026-05-24 자식 시스템 문서 분리)
+
+본 AGENTS.md는 *에이전트 내부 문서*(로스터·실행 모델·신규 에이전트 규약)다.
+자식 시스템 사용자·빌더·소유자를 위한 진입 문서는 별도 — `SHORTS-FORGE-*` 접두어
+3종(부모 *AgenticWorkflow* 방법론 문서 `AGENTICWORKFLOW-*`와 분리):
+
+| 대상 | 진입 문서 |
+|---|---|
+| 자식 시스템 개요·자매 문서 인덱스 | [SHORTS-FORGE-README.md](SHORTS-FORGE-README.md) |
+| 아키텍처·철학 통합 | [SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md](SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md) |
+| 사용자 메뉴얼 (`"시작하자"` 진입) | [SHORTS-FORGE-USER-MANUAL.md](SHORTS-FORGE-USER-MANUAL.md) |
+
+**신규 에이전트가 만드는 사용자 대면 산출**(메뉴얼·아키텍처 설명·비전문가 안내)
+은 위 3종에 어펜드해야 한다 — 본 AGENTS.md·CLAUDE.md·GEMINI.md에 사용자 대면
+설명을 누적하지 않는다(역할 분리·X3 안정성).
+
 ## 실행 모델
 
 "Product Build"의 엔진은 yaml 이 아니라 **orchestrator 서브에이전트 + SQLite 상태**다.

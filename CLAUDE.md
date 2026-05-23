@@ -4,6 +4,23 @@
 파일은 이 저장소에서 작업하는 에이전트의 정본 규칙이다. 에이전트 로스터는
 [AGENTS.md](AGENTS.md), 결정 현황은 [decision-log.md](decision-log.md) 참조.
 
+## 문서 위상 (2026-05-24 자식 시스템 문서 분리)
+
+본 저장소는 부모 유기체 *AgenticWorkflow*(만능줄기세포 = 방법론)에서 분화한
+**자식 시스템 shorts-forge**(도메인 = 로컬 Shorts 자동 생성). 자식 시스템 사용자·
+빌더·소유자를 위한 진입 문서 3종은 *접두어 `SHORTS-FORGE-*`*로 분리되며 부모
+문서(`AGENTICWORKFLOW-*`)와 파일명 충돌 없이 독립 이해 가능하다.
+
+| 대상 | 진입 문서 |
+|---|---|
+| 일반 독자·자식 시스템 개요 | [SHORTS-FORGE-README.md](SHORTS-FORGE-README.md) |
+| 빌더·리뷰어 — 아키텍처·철학 통합 | [SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md](SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md) |
+| 비전문가 소유자 — 사용자 메뉴얼 (`"시작하자"` 진입) | [SHORTS-FORGE-USER-MANUAL.md](SHORTS-FORGE-USER-MANUAL.md) |
+
+본 CLAUDE.md는 *에이전트 작업 규칙*이며 위 3종과 위상 별개 — 충돌 시 본 파일이
+작업 규칙으로 우선. 사용자 대면 *내용* 변경(메뉴얼·아키텍처 설명)은
+`SHORTS-FORGE-*` 어펜드, 작업 규칙 변경은 본 파일.
+
 ## ABSOLUTE ANCHOR (충돌 시 상위 절대 우선)
 
 1. **품질 절대우선** — 추적성·테스트 완결성이 절대 기준. 샘플링 금지. 모든 기능

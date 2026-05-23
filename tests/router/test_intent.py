@@ -145,3 +145,27 @@ def test_bare_start_resolves_via_recognize_start():
     underlying recognition is positive so the CLI dispatch is consistent.
     """
     assert router.recognize("start") is router.Intent.START_USAGE
+
+
+def test_router_and_guide_no_dynamic_import():
+    """AST-level: router/guide never call __import__ or
+    importlib.import_module — both would bypass the static import
+    assertions in ``test_router_and_guide_imports_are_clean`` and could
+    smuggle the layer-A build harness into a reachable branch.
+    """
+    for mod in (router, guide):
+        tree = ast.parse(inspect.getsource(mod))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if isinstance(func, ast.Name):
+                assert func.id != "__import__", (
+                    f"{mod.__name__}: __import__ call bypasses static "
+                    "import assertions"
+                )
+            if isinstance(func, ast.Attribute):
+                assert func.attr != "import_module", (
+                    f"{mod.__name__}: importlib.import_module call "
+                    "bypasses static import assertions"
+                )

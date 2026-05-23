@@ -5,6 +5,12 @@
 Gemini 에이전트도 동일 규칙을 따른다. 아래는 **불가침 요약** — 충돌 시 CLAUDE.md
 전문이 우선한다.
 
+**자식 시스템 사용자 대면 문서 3종** (2026-05-24·`SHORTS-FORGE-*` 접두어):
+[SHORTS-FORGE-README.md](SHORTS-FORGE-README.md) (개요·인덱스)·
+[SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md](SHORTS-FORGE-ARCHITECTURE-AND-PHILOSOPHY.md)
+(아키텍처)·[SHORTS-FORGE-USER-MANUAL.md](SHORTS-FORGE-USER-MANUAL.md) (메뉴얼).
+사용자 대면 *내용* 어펜드는 위 3종, 작업 규칙은 본 파일 + CLAUDE.md.
+
 ## 불가침 (위반 시 작업 중단)
 
 1. **SOT 본문 수정 금지** — `../PRD.md`·`../workflow.md`·`../prd-research/final-research.md`

@@ -112,16 +112,18 @@ def cmd_start(utterance: str | None) -> int:
     """
     classified = router.recognize(utterance if utterance is not None else "start")
     if classified is not router.Intent.START_USAGE:
-        print("[shorts-forge] 시작 의도를 인식하지 못했습니다.")
-        print("예시: shorts-forge start \"시작하자\" / start \"워크플로우 시작\"")
+        print("[shorts-forge] 시작 의도를 인식하지 못했습니다.", file=sys.stderr)
+        print("예시: shorts-forge start \"시작하자\" / start \"워크플로우 시작\"",
+              file=sys.stderr)
         return 1
     print(f"shorts-forge {__version__} ready.")
     guide.render(sys.stdout)
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    encoding.force_utf8_io()   # 콘솔 cp949 비의존 — UTF-8 강제(인코딩 불변)
+def _build_parser() -> argparse.ArgumentParser:
+    """argparse subcommand graph. New verbs add one parser here + one
+    entry in ``_DISPATCH`` — ``main()`` stays unchanged."""
     p = argparse.ArgumentParser(prog="shorts-forge",
                                 description="로컬 전용 Shorts 생성(게이트 비의존)")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -135,15 +137,24 @@ def main(argv: list[str] | None = None) -> int:
     ps.add_argument("utterance", nargs="?", default=None,
                     help="시작 의도 자연어 (예: \"시작\", \"워크플로우 시작하자\")")
     # publish verb 의도적 부재 — [GATE:D3]
-    args = p.parse_args(argv)
-    if args.cmd == "selfcheck":
-        return cmd_selfcheck()
-    if args.cmd == "run":
-        return cmd_run(args.inbox, root=args.root, dry_run=args.dry_run,
-                       seed=args.seed)
-    if args.cmd == "start":
-        return cmd_start(args.utterance)
-    return 1
+    return p
+
+
+_DISPATCH = {
+    "selfcheck": lambda args: cmd_selfcheck(),
+    "run": lambda args: cmd_run(args.inbox, root=args.root,
+                                dry_run=args.dry_run, seed=args.seed),
+    "start": lambda args: cmd_start(args.utterance),
+}
+
+
+def main(argv: list[str] | None = None) -> int:
+    encoding.force_utf8_io()   # 콘솔 cp949 비의존 — UTF-8 강제(인코딩 불변)
+    args = _build_parser().parse_args(argv)
+    handler = _DISPATCH.get(args.cmd)
+    if handler is None:
+        return 1
+    return handler(args)
 
 
 if __name__ == "__main__":

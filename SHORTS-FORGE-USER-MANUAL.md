@@ -90,7 +90,7 @@ shorts-forge selfcheck
 shorts-forge 0.1.0 — selfcheck
   [OK] UTF-8 런타임
   [OK] ffmpeg 해석: /path/to/ffmpeg
-  [OK] 게이트 레지스트리 15개: D1,D11,D12,D13,D14,D15,D16,D2,D3,D5,D6,D7,D8,D9
+  [OK] 게이트 레지스트리 15개: D1,D10,D11,D12,D13,D14,D15,D16,D2,D3,D5,D6,D7,D8,D9
   [OK] netguard 설치/복원 (아웃바운드 기본거부)
   [OK] publish verb 부재 ([GATE:D3] 자동게시 차단)
 selfcheck: PASS

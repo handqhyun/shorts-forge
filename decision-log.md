@@ -131,3 +131,22 @@ C-*·INVARIANT #1 위반 없는 한 상태모델/어댑터 뒤 캡슐화되어 �
   미결정 17 불변·신규 BLOCKING 0·결정 표면 4안 미발생(BLOCKING 결정 아님).
   **L3 정지성 메타**: 사용자 명시 지시 = §11-L3 정지 술어 *(b) 분기*(사용자
   명시 지시·입력 생성) 정합·자율 N+1 0([[feedback-l3-b-branch]] 동형).
+- **(2026-05-25) USER-MANUAL selfcheck 예시 출력 게이트 ID 나열 D10 누락 정정 (X3 안정성·문서 계층·소유자 명시 지시)** —
+  소유자 명시 지시("D10 누락 수정 적용해줘") 직전 turn 자식 3종 검증 보고서 적출
+  사소한 불일치 1건 해소. **근본**: `SHORTS-FORGE-USER-MANUAL.md:93` selfcheck
+  예시 코드블록 출력 `[OK] 게이트 레지스트리 15개: D1,D11,D12,...,D9` 가 카운트
+  표기 "15"는 정확하나 나열된 ID는 14개(D10 빠짐) — 실 코드 `cli.py:79`
+  `sorted(GATES)` 출력(lexicographic: `D1,D10,D11,D12,D13,D14,D15,D16,D2,D3,D5,
+  D6,D7,D8,D9` = 15)과 한 토큰 desync. **수정**: `D1,` 직후·`D11,` 직전에
+  `D10,` 1 토큰 삽입(lexicographic 위치 정합·`spine/gates.py:36` `GATES` dict
+  실제 15 entries 정합). diff +1/-1 = 1 줄 변경. **본 적용의 한정**: 예시 코드
+  블록 *문자열 표시*만 정정 — `cli.py`/`spine/gates.py`/`tests/` 0 수정·SOT
+  본문(`../PRD.md`/`../workflow.md`/`../prd-research/final-research.md`) 0 수정·
+  코드 베이스라인 311 passed/0 failed 불변·D1–D17 미결정 17 불변·신규
+  BLOCKING 0·게이트 레지스트리 *의미* 0 변경. **X3 안정성 클래스 동형**: 본
+  정정 = 표시 토큰 in-place 정합(앵커 포인터 위생·번복 아님·결정 변경 0)
+  — `[[feedback-append-only]]` 의 "버전/상태 토큰 in-place 정정만 예외" 동형.
+  **검증**: 동일 패턴 다른 위치 0건(`SHORTS-FORGE-*.md`/`README.md`/`docs/*.md`
+  grep 결과 단일 hit). **L3 정지성 메타**: 사용자 명시 지시 = §11-L3 정지 술어
+  *(b) 분기* 정합·자율 N+1 0([[feedback-anchor3-apply-gate]] 동형·보고 turn →
+  명시 적용 turn 분리 준수).

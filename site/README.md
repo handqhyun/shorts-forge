@@ -105,6 +105,13 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v1.0 (2026-05-25)** — **동영상 입력 지원** + **자동 시간순 정렬** + **동영상
+  음향 자동 mute** (음악 우선 정책). ①번 input에 사진·동영상 함께 선택 가능·
+  EXIF DateTimeOriginal(사진) + File.lastModified(동영상) 기반 자동 옛것→
+  최신 정렬. 동영상 원래 소리는 항상 제거 (음악이 사운드트랙)·exifr CDN
+  ~10KB 추가·INVARIANT 'no upload' 보존. 동영상은 컷당 초 만큼만 재생.
+  상태 줄에 🖼/🎬 아이콘으로 현재 컷 종류 표시·메타 JSON에 media_order
+  (각 미디어 종류·이름·timestamp) 기록.
 - **v0.9 (2026-05-25)** — BGM 무드 **3→8개로 확장**. 신규 5개: **Cinematic**
   (영화 OST·C minor·timpani·웅장)·**Hymn** (전통 찬송·SATB 4성부·church
   organ + choir pad)·**Jazz Café** (ii-V-I 재즈·comping + brush swing)·

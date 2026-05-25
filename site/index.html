@@ -14,6 +14,12 @@
     bytes.
   -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+  <!--
+    exifr — minimal EXIF parser (v1.0). Reads DateTimeOriginal locally to
+    auto-sort photos chronologically. Browser-only; user pixels never leave.
+    INVARIANT 'no upload' unchanged: same carve-out (library code only).
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
   <style>
     :root { color-scheme: light dark; }
     body { font-family: system-ui, -apple-system, "Apple SD Gothic Neo",
@@ -66,8 +72,11 @@
   </p>
 
   <div class="card">
-    <label for="photos">① 사진 (여러 장)</label>
-    <input id="photos" type="file" accept="image/*" multiple />
+    <label for="photos">① 사진 + 동영상 (여러 개 — 자동 시간순 정렬)</label>
+    <input id="photos" type="file" accept="image/*,video/*" multiple />
+    <div class="hint">사진(EXIF 촬영 시각) + 동영상(파일 수정 시각)이 자동으로
+                      옛것 → 최신 순서로 배치됩니다. <strong>동영상의 원래 음향은
+                      제거됩니다</strong>(음악·자동 BGM이 우선).</div>
   </div>
 
   <div class="card">
@@ -168,6 +177,36 @@
       <p style="margin-top:0.5rem;color:#666">
         💡 출처별 라이선스(크레딧·상업 사용)이 다르니 한 번 읽어 보세요.
         영상 설명(③)에 크레딧 한 줄을 적어 두면 깔끔합니다.
+      </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>🖼🎬 사진 + 동영상 자동 배치 (v1.0)</summary>
+    <div style="font-size:0.9rem;color:inherit;line-height:1.6">
+      <p>
+        ①번 입력에 사진과 동영상을 함께 골라 둘 수 있습니다 (`.mp4`·`.mov`·
+        `.webm` 등 브라우저가 디코드 가능한 모든 영상 포맷). 자동으로
+        <strong>EXIF 촬영 시각</strong>(사진) + <strong>파일 수정 시각</strong>
+        (동영상)을 분석해 <em>옛것 → 최신</em> 순서로 배치됩니다 — 별도 정렬
+        조작 없이 입력 폴더만 던지면 됩니다.
+      </p>
+      <p>
+        <strong>동영상 음향 정책 (v1.0)</strong>: 영상의 원래 소리는 *항상
+        제거*되며 음악(② 사용자 음악 파일 또는 🎶 자동 BGM)이 사운드트랙으로
+        사용됩니다. "음악이 있으면 동영상 음향 X" 정책이 명시 채택되었고,
+        모바일 안정성을 위해 *항상 mute*로 단순화되었습니다. 음악 없을 때
+        동영상 음향을 살리는 옵션은 별 turn 결정 잔존.
+      </p>
+      <p>
+        <strong>동영상 길이</strong>: 각 동영상은 컷당 초 (⑤번 입력) 만큼만
+        재생됩니다 — 동영상이 더 길면 그 시간에서 잘리고, 짧으면 마지막
+        프레임이 정지됩니다. 상태 줄에 🖼/🎬 아이콘으로 현재 컷이 사진인지
+        동영상인지 표시됩니다.
+      </p>
+      <p>
+        <strong>내용 기반 정렬</strong>(밝기·채도·색·얼굴 등 분석)은 별 turn
+        결정 잔존. 현재 v1.0은 *시간순*만 자동 적용.
       </p>
     </div>
   </details>
@@ -353,14 +392,119 @@
       } finally { setTimeout(() => URL.revokeObjectURL(url), 5000); }
     }
 
-    function drawCoverCrop(ctx, img) {
-      const sR = img.width / img.height, dR = W / H;
+    // v1.0: video element loader. muted=true (audio comes from music/BGM
+    // layer only — owner's explicit policy: "동영상 음향 없애라"). playsInline
+    // is required for iOS Safari to play inside the page.
+    async function loadVideo(file) {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.src = url;
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'auto';
+      video.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => {
+        video.addEventListener('loadeddata', res, { once: true });
+        video.addEventListener('error', () => rej(
+          new Error('video decode failed')), { once: true });
+      });
+      // Auto-revoke after a generous safety window.
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+      return video;
+    }
+
+    // v1.0: timestamp extractor for chronological sorting.
+    //   - images: EXIF DateTimeOriginal if exifr loaded; else lastModified
+    //   - videos: lastModified only (mp4 metadata extraction in-browser is
+    //             heavy and not portable — deferred to a future turn)
+    async function getMediaTimestamp(file) {
+      const fallback = file.lastModified || Date.now();
+      if (file.type.startsWith('image/') && typeof exifr !== 'undefined') {
+        try {
+          const ex = await exifr.parse(file, ['DateTimeOriginal', 'CreateDate',
+                                              'ModifyDate']);
+          const d = ex?.DateTimeOriginal || ex?.CreateDate || ex?.ModifyDate;
+          if (d) return d.getTime();
+        } catch {}
+      }
+      return fallback;
+    }
+
+    // v1.0: unified media loader. Returns
+    //   [{ kind: 'image'|'video', src: HTMLImageElement|HTMLVideoElement,
+    //      file, ts, dur (videos only) }, ...]
+    // sorted chronologically (oldest first) by EXIF date or file mtime.
+    async function loadAndSortMedia(files, progressCb) {
+      const annotated = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        progressCb?.(`📂 미디어 분석 중… ${i + 1}/${files.length} (${f.name})`);
+        const ts = await getMediaTimestamp(f);
+        annotated.push({ file: f, ts });
+      }
+      // Stable sort: chronological by extracted timestamp.
+      annotated.sort((a, b) => a.ts - b.ts);
+
+      const media = [];
+      for (let i = 0; i < annotated.length; i++) {
+        const { file: f, ts } = annotated[i];
+        progressCb?.(`🖼️ 디코드 중… ${i + 1}/${annotated.length}`);
+        try {
+          if (f.type.startsWith('video/')) {
+            const v = await loadVideo(f);
+            media.push({ kind: 'video', src: v, file: f, ts,
+                         dur: v.duration || 0 });
+          } else {
+            const img = await loadImage(f);
+            media.push({ kind: 'image', src: img, file: f, ts });
+          }
+        } catch (e) {
+          progressCb?.(`⚠️ 건너뜀: ${f.name} — ${e?.message || e}`);
+        }
+      }
+      return media;
+    }
+
+    function drawCoverCrop(ctx, src) {
+      // Works for both HTMLImageElement and HTMLVideoElement (both have
+      // naturalWidth/Height or videoWidth/Height accessible via the same API).
+      const w = src.naturalWidth || src.videoWidth || src.width || W;
+      const h = src.naturalHeight || src.videoHeight || src.height || H;
+      const sR = w / h, dR = W / H;
       let sx, sy, sw, sh;
-      if (sR > dR) { sh = img.height; sw = sh * dR;
-                     sx = (img.width - sw) / 2; sy = 0; }
-      else         { sw = img.width;  sh = sw / dR;
-                     sx = 0; sy = (img.height - sh) / 2; }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+      if (sR > dR) { sh = h; sw = sh * dR;
+                     sx = (w - sw) / 2; sy = 0; }
+      else         { sw = w;  sh = sw / dR;
+                     sx = 0; sy = (h - sh) / 2; }
+      ctx.drawImage(src, sx, sy, sw, sh, 0, 0, W, H);
+    }
+
+    // v1.0: ensure exactly the right video element is playing for the
+    // current cut. Idempotent — safe to call every frame. Videos that
+    // aren't on the active cut(s) get paused.
+    function ensureVideoState(media, activeIndices) {
+      for (let i = 0; i < media.length; i++) {
+        if (media[i].kind !== 'video') continue;
+        const v = media[i].src;
+        const shouldPlay = activeIndices.has(i);
+        if (shouldPlay && v.paused) {
+          if (v.currentTime > 0.01) {
+            // Restarting this cut from the top would jar — but if we've
+            // already advanced past its hold, just resume from where we were.
+          }
+          v.play().catch(() => {});  // ignore autoplay rejections
+        } else if (!shouldPlay && !v.paused) {
+          v.pause();
+        }
+      }
+    }
+
+    function resetVideoForCut(media, i) {
+      // Called when entering cut `i` for the first time — rewinds the video
+      // to 0 so it plays from the beginning for this cut.
+      if (media[i]?.kind === 'video') {
+        try { media[i].src.currentTime = 0; } catch {}
+      }
     }
 
     function clearFrame(ctx) {
@@ -1260,16 +1404,19 @@
       const wantBgm = bgmEnabled.checked;
       const mood = bgmMood.value;
 
-      setStatus(`사진 ${photos.length}장 디코드 중…`);
-      const images = [];
-      for (let i = 0; i < photos.length; i++) {
-        try { images.push(await loadImage(photos[i])); }
-        catch { setStatus(`⚠️ ${photos[i].name} 디코드 실패 — 건너뜀.`); }
-      }
-      if (!images.length) {
-        setStatus('⚠️ 디코드 가능한 사진이 0장입니다.');
+      // v1.0: unified media load + chronological auto-sort.
+      const media = await loadAndSortMedia(photos, setStatus);
+      if (!media.length) {
+        setStatus('⚠️ 디코드 가능한 미디어가 0개입니다.');
         runBtn.disabled = false; return;
       }
+      // `images` is now a synonym for `media` so existing drawPhase /
+      // resolvePhase code (which addresses `images[i]`) keeps working —
+      // each entry has `.src` (HTMLImageElement | HTMLVideoElement) that
+      // drawCoverCrop accepts uniformly.
+      const images = media.map((m) => m.src);
+      const photoCount = media.filter((m) => m.kind === 'image').length;
+      const videoCount = media.filter((m) => m.kind === 'video').length;
 
       // v0.8: total time now includes intro, per-cut hold, transitions, outro.
       // BGM length and metadata are derived from this composite total.
@@ -1331,8 +1478,11 @@
 
       // Prime the first frame (intro start = full black + alpha 0 image).
       clearFrame(ctx);
+      // v1.0: if cut 0 is a video, rewind it before the recorder starts.
+      resetVideoForCut(media, 0);
       rec.start(250);
       const t0 = performance.now();
+      let lastActiveCut = -1;
 
       const audioBadge = audioMode === 'owner'
         ? `🎵 ${audioFile.name}`
@@ -1340,24 +1490,47 @@
             ? `🎶 자동 BGM (${audioMode.split(':').slice(1).join(' · ')})`
             : '🔇 무음';
 
-      // v0.8: per-frame render loop driven by resolvePhase. Each frame
-      // computes the current transition phase from elapsed time and draws
-      // the appropriate composite (intro fade, hold, crossfade, fade-black,
-      // outro fade). Frame cadence ~33ms matches 30fps capture.
+      // v0.8 per-frame render loop + v1.0 video state management.
       const frameMs = Math.max(16, Math.round(1000 / fps));
       while (true) {
         const e = (performance.now() - t0) / 1000;
         if (e >= total) break;
         const phase = resolvePhase(e, images.length, perCut, transProfile, blackBars);
         if (phase.kind === 'done') break;
+
+        // v1.0: figure out which cut(s) are currently visible — drive video
+        // play/pause from that. During holds and intro/outro it's one cut;
+        // during cross/fadeBlack it's two (the outgoing + incoming).
+        const active = new Set();
+        if (phase.kind === 'intro' || phase.kind === 'cut') {
+          active.add(phase.i ?? 0);
+        } else if (phase.kind === 'cross' || phase.kind === 'fadeBlack') {
+          active.add(phase.i); active.add(phase.i + 1);
+        } else if (phase.kind === 'outro') {
+          active.add(images.length - 1);
+        }
+        // Detect first entry into a new cut — rewind that cut's video so
+        // it plays from its own start (not continuing from previous run).
+        const currentCut = phase.i ?? (phase.kind === 'outro' ? images.length - 1 : 0);
+        if (currentCut !== lastActiveCut) {
+          resetVideoForCut(media, currentCut);
+          lastActiveCut = currentCut;
+        }
+        ensureVideoState(media, active);
+
         drawPhase(ctx, images, phase);
+        const mediaTag = (i) => media[i]?.kind === 'video' ? '🎬' : '🖼';
         const label = phase.kind === 'intro'    ? '인트로 페이드'
                     : phase.kind === 'outro'    ? '아웃트로 페이드'
-                    : phase.kind === 'cross'    ? `컷 ${phase.i + 1}→${phase.i + 2} 크로스페이드`
-                    : phase.kind === 'fadeBlack' ? `컷 ${phase.i + 1}→${phase.i + 2} 페이드 블랙`
-                    : `컷 ${(phase.i ?? 0) + 1}/${images.length}`;
+                    : phase.kind === 'cross'    ? `${mediaTag(phase.i)}${phase.i + 1}→${mediaTag(phase.i + 1)}${phase.i + 2} 크로스페이드`
+                    : phase.kind === 'fadeBlack' ? `${mediaTag(phase.i)}${phase.i + 1}→${mediaTag(phase.i + 1)}${phase.i + 2} 페이드 블랙`
+                    : `${mediaTag(currentCut)} ${currentCut + 1}/${images.length}`;
         setStatus(`녹화 중… ${e.toFixed(1)}s / ${total.toFixed(1)}s · ${label} · ${audioBadge}`);
         await new Promise((r) => setTimeout(r, frameMs));
+      }
+      // v1.0: stop every video at the end (release decoder).
+      for (const m of media) {
+        if (m.kind === 'video') { try { m.src.pause(); } catch {} }
       }
       // Final black tail
       clearFrame(ctx);
@@ -1378,23 +1551,30 @@
         title: memo ? memo.slice(0, 90)
                     : '오늘의 기록 | 사진과 영상으로 만든 쇼츠',
         description: memo
-          ? `${memo}\n\n(자동 정보: 약 ${Math.round(total)}초·총 ${images.length}개 컷.)`
-          : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷.`,
+          ? `${memo}\n\n(자동 정보: 약 ${Math.round(total)}초·총 ${images.length}개 컷·사진 ${photoCount}장·동영상 ${videoCount}개.)`
+          : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷 (사진 ${photoCount}·동영상 ${videoCount}).`,
         hashtags,
-        ai_disclosure: audioMode.startsWith('bgm:'),   // procedural BGM = AI-generated
-        source: `shorts-forge-browser v0.9 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName})`,
+        ai_disclosure: audioMode.startsWith('bgm:'),
+        source: `shorts-forge-browser v1.0 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount})`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
         audio_source: audioMode === 'owner' ? audioFile.name : audioMode,
         duration_sec: Math.round(total),
         cuts: images.length,
+        photos: photoCount,
+        videos: videoCount,
+        media_order: media.map((m) => ({
+          kind: m.kind,
+          name: m.file.name,
+          ts: new Date(m.ts).toISOString(),
+        })),
         container_mime: mime,
         transitions: {
           profile: transProfileName,
           intro_sec: transProfile.intro,
           outro_sec: transProfile.outro,
           crossfade_sec: transProfile.trans,
-          fade_black_cuts: [...blackBars].map((i) => i + 1),  // 1-indexed for humans
+          fade_black_cuts: [...blackBars].map((i) => i + 1),
         },
         generated_at: new Date().toISOString(),
       };

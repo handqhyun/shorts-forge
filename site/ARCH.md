@@ -103,6 +103,36 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v1.0 결정 (2026-05-25)
+
+- **D-video-input**: 사용자 "동영상 삽입 가능하게" 요청. `<input
+  accept="image/*,video/*">` + `loadVideo()` (HTMLVideoElement·muted=true·
+  playsInline=true·crossOrigin='anonymous'). drawCoverCrop를 image/video
+  통합 처리(naturalWidth || videoWidth fallback). 컷별 video.currentTime 0
+  리셋 + ensureVideoState로 play/pause idempotent.
+- **D-audio-mute-policy**: 사용자 "음악이 있으면 동영상 음향 X" 명시.
+  v1.0 minimum = *항상 video.muted = true* (모바일 안정성·iOS Safari
+  video.captureStream() 미지원 회피). 음악 없을 때 video audio 살리는
+  옵션은 별 turn 결정 잔존.
+- **D-auto-sort**: 사용자 "사진 분석 후 잘 맞는 순서" 요청. v1.0 minimum =
+  *시간순* (EXIF DateTimeOriginal/CreateDate/ModifyDate → File.lastModified
+  폴백). 사진은 exifr 라이브러리(~10KB CDN) 사용·동영상은 lastModified만.
+  내용 기반 정렬(밝기·채도·색·얼굴·CV)은 별 turn 잔존.
+- **D-cdn-exifr**: exifr CDN 1개 추가 (jsdelivr `exifr/dist/lite.umd.js`).
+  INVARIANT 'no upload' 보존 — 라이브러리 자체 fetch만·사용자 콘텐츠
+  외부 송신 0. 부모 PRD §4 카브아웃 #1 ("1회 셋업 fetch") 정신 정합.
+- **D-time-accounting**: video는 v0.8 transition system과 그대로 호환 —
+  resolvePhase·drawPhase의 image 자리에 video element가 들어감
+  (Canvas 2D drawImage는 둘 다 받음). 단, transition (cross/fadeBlack)
+  중에는 두 video가 동시 play (active set).
+- **D-meta-extension**: 메타 JSON에 photos/videos count + media_order
+  (각 미디어의 kind/name/timestamp) 추가 — 사용자가 자동 정렬 결과를
+  확인 가능.
+- **잔존 (별 turn)**: video 음향 옵션 (음악 없을 때 살림)·내용 기반 정렬
+  (밝기·채도·색 군집화·face detection)·video duration 정확 사용 (현재 =
+  perCut으로 강제 자름)·video transcode (브라우저 안 ffmpeg.wasm)·
+  thumbnail 생성·정렬 사용자 override (drag-drop).
+
 ### v0.9 결정 (2026-05-25)
 
 - **D-mood-categories-expand**: 사용자 "음악 카테고리 적다·더 늘려" 요청.
@@ -218,6 +248,11 @@
 
 ## 변경 노트
 
+- **v1.0 (2026-05-25)** — 동영상 입력 지원 (사진+동영상 혼재)·EXIF 기반
+  자동 시간순 정렬 (exifr CDN ~10KB 추가)·동영상 음향 항상 mute (음악
+  우선 정책)·video element 관리 (play/pause per cut·currentTime 0 리셋)·
+  transition system과 호환 (cross 중 두 video 동시 play). 메타 JSON에
+  media_order 추가. INVARIANT 보존 (자동 fetch 0 자가검증).
 - **v0.9 (2026-05-25)** — BGM 무드 3→8개 확장 (cinematic·hymn·jazz_cafe·
   upbeat_pop·meditation 신규). 각 mood가 chord progression·instrument·
   drum pattern·effects chain·transition profile 독립 정의. cinematic은

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>shorts-forge-browser — 브라우저 안 Shorts 생성</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, "Apple SD Gothic Neo",
+                       "Noto Sans KR", sans-serif;
+           max-width: 720px; margin: 2rem auto; padding: 0 1rem;
+           line-height: 1.5; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    .sub { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1.2rem;
+            margin-bottom: 1rem; background: rgba(127,127,127,0.04); }
+    label { display: block; font-weight: 600; margin-bottom: 0.4rem; }
+    input[type=file], input[type=number], textarea {
+      width: 100%; box-sizing: border-box; padding: 0.5rem;
+      border: 1px solid #bbb; border-radius: 6px; background: inherit;
+      color: inherit; font: inherit;
+    }
+    textarea { min-height: 4rem; resize: vertical; }
+    button { padding: 0.7rem 1.2rem; border-radius: 8px; border: 0;
+             background: #2e6fdb; color: white; font-weight: 600;
+             cursor: pointer; font-size: 1rem; }
+    button:disabled { background: #888; cursor: not-allowed; }
+    #status { margin: 1rem 0; font-family: ui-monospace, monospace;
+              white-space: pre-wrap; min-height: 1.5rem; }
+    video { width: 100%; max-height: 60vh; border-radius: 8px;
+            background: black; margin-top: 1rem; }
+    a.download { display: inline-block; margin-top: 0.6rem; padding: 0.5rem 1rem;
+                 background: #21a55a; color: white; border-radius: 6px;
+                 text-decoration: none; font-weight: 600; }
+    .invariant { font-size: 0.85rem; color: #777;
+                 border-left: 3px solid #21a55a; padding-left: 0.8rem;
+                 margin-top: 0.5rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  </style>
+</head>
+<body>
+  <h1>shorts-forge-browser</h1>
+  <p class="sub">
+    사진 여러 장을 골라 9:16 세로 슬라이드 영상(webm)을 만든다.
+    <strong>모든 처리는 이 브라우저 안에서만</strong> 일어난다 —
+    사진은 어떤 서버로도 업로드되지 않는다.
+  </p>
+
+  <div class="card">
+    <label for="photos">1) 사진 선택 (여러 장)</label>
+    <input id="photos" type="file" accept="image/*" multiple />
+  </div>
+
+  <div class="card">
+    <label for="memo">2) 영상 내용 메모 (옵션 · 다운로드 파일명에 사용)</label>
+    <textarea id="memo" placeholder="예: 한강 자전거 라이딩 모음"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="seconds">3) 컷당 초 (1.0–6.0)</label>
+        <input id="seconds" type="number" value="3" min="1" max="6" step="0.5" />
+      </div>
+      <div>
+        <label for="fps">4) 프레임률</label>
+        <input id="fps" type="number" value="30" min="15" max="60" step="1" />
+      </div>
+    </div>
+  </div>
+
+  <button id="run">▶ 영상 만들기</button>
+  <div id="status">대기 중. 사진을 고르고 [영상 만들기]를 누르세요.</div>
+  <video id="preview" controls playsinline></video>
+  <div id="downloadWrap"></div>
+
+  <p class="invariant">
+    🔒 브라우저 외 전송 0 · 서버 0 · 텔레메트리 0. 본 페이지는 정적 HTML 한
+    파일이며 네트워크는 페이지 로드(이 파일 자체)에만 사용된다. 사진/영상
+    바이트는 어디로도 나가지 않는다. (부모 시스템 shorts-forge INVARIANT #1
+    재해석: "로컬 PC 전용" → "브라우저 외 전송 0".)
+  </p>
+
+  <script type="module">
+    const W = 1080, H = 1920;
+    const statusEl = document.getElementById('status');
+    const preview  = document.getElementById('preview');
+    const dlWrap   = document.getElementById('downloadWrap');
+    const runBtn   = document.getElementById('run');
+
+    const setStatus = (s) => { statusEl.textContent = s; };
+
+    const sanitize = (s) =>
+      (s || '').trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 60) || 'shorts';
+
+    async function loadImage(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        img.decoding = 'async';
+        await new Promise((res, rej) => {
+          img.onload = res; img.onerror = rej; img.src = url;
+        });
+        return img;
+      } finally {
+        // Revoke after draw — keep URL alive briefly for the decode.
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+    }
+
+    function drawCoverCrop(ctx, img) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      const sR = img.width / img.height;
+      const dR = W / H;
+      let sx, sy, sw, sh;
+      if (sR > dR) {
+        // image wider than 9:16 → crop width
+        sh = img.height; sw = sh * dR;
+        sx = (img.width - sw) / 2; sy = 0;
+      } else {
+        sw = img.width; sh = sw / dR;
+        sx = 0; sy = (img.height - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+    }
+
+    function pickMime() {
+      const candidates = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
+      ];
+      for (const m of candidates) {
+        if (MediaRecorder.isTypeSupported(m)) return m;
+      }
+      return '';
+    }
+
+    async function render() {
+      runBtn.disabled = true;
+      dlWrap.innerHTML = '';
+      preview.removeAttribute('src');
+
+      const files = [...document.getElementById('photos').files];
+      if (!files.length) {
+        setStatus('⚠️ 사진을 한 장 이상 골라 주세요.');
+        runBtn.disabled = false; return;
+      }
+      const perCut = parseFloat(document.getElementById('seconds').value) || 3;
+      const fps    = parseInt(document.getElementById('fps').value, 10) || 30;
+      const memo   = document.getElementById('memo').value;
+
+      setStatus(`사진 ${files.length}장 디코드 중…`);
+      const images = [];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          images.push(await loadImage(files[i]));
+        } catch {
+          setStatus(`⚠️ ${files[i].name} 디코드 실패 — 건너뜀.`);
+        }
+      }
+      if (!images.length) {
+        setStatus('⚠️ 디코드 가능한 사진이 0장입니다.');
+        runBtn.disabled = false; return;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      const mime = pickMime();
+      if (!mime) {
+        setStatus('⚠️ 이 브라우저는 webm 녹화를 지원하지 않습니다 (Chrome/Edge/Firefox 권장).');
+        runBtn.disabled = false; return;
+      }
+
+      const stream = canvas.captureStream(fps);
+      const chunks = [];
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 });
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+
+      const done = new Promise((res) => { rec.onstop = () => res(); });
+
+      drawCoverCrop(ctx, images[0]);   // first frame before start (recorder needs a frame)
+      rec.start(250);
+      const t0 = performance.now();
+      const total = images.length * perCut;
+
+      for (let i = 0; i < images.length; i++) {
+        drawCoverCrop(ctx, images[i]);
+        const elapsedSec = () => (performance.now() - t0) / 1000;
+        const target = (i + 1) * perCut;
+        // hold the frame on canvas until target time
+        while (elapsedSec() < target) {
+          await new Promise((r) => setTimeout(r, 30));
+          // re-draw to keep the canvas stream pumping (some browsers
+          // require a paint to emit a frame)
+          drawCoverCrop(ctx, images[i]);
+          setStatus(`녹화 중… ${elapsedSec().toFixed(1)}s / ${total.toFixed(1)}s · 컷 ${i + 1}/${images.length}`);
+        }
+      }
+      rec.stop();
+      await done;
+
+      const blob = new Blob(chunks, { type: mime });
+      const url = URL.createObjectURL(blob);
+      preview.src = url;
+
+      const base = sanitize(memo);
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${base}_${ts}.webm`;
+      a.className = 'download';
+      a.textContent = `⬇ 다운로드: ${a.download} (${(blob.size / 1024 / 1024).toFixed(1)} MB)`;
+      dlWrap.appendChild(a);
+
+      setStatus(`✅ 완료. ${images.length}장 · ${total.toFixed(1)}초 · ${mime}`);
+      runBtn.disabled = false;
+    }
+
+    runBtn.addEventListener('click', () => render().catch((e) => {
+      setStatus('❌ 오류: ' + (e?.message || e));
+      runBtn.disabled = false;
+    }));
+  </script>
+</body>
+</html>

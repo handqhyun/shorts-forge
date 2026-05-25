@@ -103,6 +103,22 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v0.9 결정 (2026-05-25)
+
+- **D-mood-categories-expand**: 사용자 "음악 카테고리 적다·더 늘려" 요청.
+  3개(ambient·lofi·acoustic) → 8개(+cinematic·hymn·jazz_cafe·upbeat_pop·
+  meditation). 각 mood가 독립적인 chord progression·CHORD_SYMBOLS·
+  instrument·drum pattern·effects chain·TRANSITION_PROFILES 정의.
+- **D-key-variety**: 기존 3개는 모두 C major였음 → cinematic만 C minor 도입
+  (epic). 나머지 신규 mood는 C major 유지(ImprovRNN의 chord-conditioning
+  안전성 우선).
+- **D-arpeggio-variants**: upbeat_pop은 16분음 + 빠른 4-on-floor·jazz_cafe는
+  brush swing comping·hymn은 SATB 4성부 voicing·meditation은 stacked 5도
+  드론. Mood 간 *식별 가능한 차이* 명시.
+- **D-no-cdn**: v0.8과 동일 — CDN 추가 0·INVARIANT 보존(자동 fetch 0 자가검증).
+- **잔존 (별 turn)**: BPM 사용자 조절·키 선택(C/D/E/F·major/minor)·다중 mood
+  mix·사용자 정의 chord progression·MIDI export·각 mood 미리 듣기 버튼.
+
 ### v0.8 결정 (2026-05-25)
 
 - **D-transitions**: 사용자 "컷과 컷 사이에 여러 페이드 인/페이드 아웃 효과를
@@ -202,6 +218,10 @@
 
 ## 변경 노트
 
+- **v0.9 (2026-05-25)** — BGM 무드 3→8개 확장 (cinematic·hymn·jazz_cafe·
+  upbeat_pop·meditation 신규). 각 mood가 chord progression·instrument·
+  drum pattern·effects chain·transition profile 독립 정의. cinematic은
+  C minor (epic)·기타는 C major 유지. CDN 추가 0·INVARIANT 보존.
 - **v0.8 (2026-05-25)** — 컷 사이 트랜지션 시스템 도입. Canvas 2D alpha-
   blend per-frame composite (외부 라이브러리 0). BGM 무드와 자동 매칭 —
   ambient=1.0초 crossfade·lofi=0.6초 crossfade + 3컷마다 페이드 블랙·

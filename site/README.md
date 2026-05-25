@@ -105,6 +105,12 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v0.9 (2026-05-25)** — BGM 무드 **3→8개로 확장**. 신규 5개: **Cinematic**
+  (영화 OST·C minor·timpani·웅장)·**Hymn** (전통 찬송·SATB 4성부·church
+  organ + choir pad)·**Jazz Café** (ii-V-I 재즈·comping + brush swing)·
+  **Upbeat Pop** (I-V-vi-IV·pluck synth·4-on-floor·빠른 트랜지션 0.3초)·
+  **Meditation** (단일 드론·stacked 5도·huge reverb 9s·매우 긴 트랜지션
+  1.5초). 각 mood가 독립적인 화성·악기·드럼·이펙트·트랜지션 길이.
 - **v0.8 (2026-05-25)** — 컷 사이 트랜지션 시스템 도입 (인트로 페이드 인·
   크로스페이드·페이드 블랙·아웃트로 페이드 아웃). Canvas 2D alpha 합성·
   외부 라이브러리 0. BGM 무드 자동 매칭 (ambient=1.0초 깊은 crossfade·

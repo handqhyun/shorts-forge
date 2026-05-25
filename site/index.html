@@ -81,9 +81,14 @@
         <input id="bgmEnabled" type="checkbox" /> 🎶 자동 BGM 생성 (Tone.js procedural)
       </label>
       <select id="bgmMood">
-        <option value="lofi">Lo-Fi Piano (잔잔·재즈 화성)</option>
         <option value="ambient" selected>Ambient Pad (편안·예배 분위기)</option>
+        <option value="lofi">Lo-Fi Piano (잔잔·재즈 화성)</option>
         <option value="acoustic">Acoustic Arpeggio (밝음·일상)</option>
+        <option value="cinematic">Cinematic (영화 OST·웅장)</option>
+        <option value="hymn">Hymn (고전 찬송·4성부)</option>
+        <option value="jazz_cafe">Jazz Café (스윙·브러시)</option>
+        <option value="upbeat_pop">Upbeat Pop (밝고 빠른 SNS)</option>
+        <option value="meditation">Meditation (명상·드론)</option>
       </select>
     </div>
     <div class="hint">자동 BGM은 결정론 코드 진행(seed 기반)·CCM/예배에 어울리는
@@ -164,6 +169,36 @@
         💡 출처별 라이선스(크레딧·상업 사용)이 다르니 한 번 읽어 보세요.
         영상 설명(③)에 크레딧 한 줄을 적어 두면 깔끔합니다.
       </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>🎵 8가지 BGM 무드 (v0.9 — 카테고리 확장)</summary>
+    <div style="font-size:0.9rem;color:inherit;line-height:1.6">
+      <p>v0.9에서 BGM 무드가 3개 → 8개로 늘었습니다. 각 무드는 독립적인 화성
+         진행·악기·드럼·이펙트·트랜지션 길이를 가집니다:</p>
+      <ul>
+        <li><strong>Ambient Pad</strong> — sine pad + AMSynth shimmer · 긴
+            reverb · 드럼 없음 · 1.0초 깊은 크로스페이드 <em>(편안·예배)</em></li>
+        <li><strong>Lo-Fi Piano</strong> — FM e-piano + 워킹 베이스 · kick+hat+rim ·
+            chorus+ping-pong delay · 3컷마다 페이드 블랙 <em>(카페·재즈 화성)</em></li>
+        <li><strong>Acoustic Arpeggio</strong> — FM bright arpeggio · sparse kick ·
+            0.4초 빠른 크로스페이드 <em>(밝은 일상 vlog)</em></li>
+        <li><strong>Cinematic</strong> — C minor · AMSynth pad + 깊은 FM 베이스 ·
+            timpani 같은 kick · 깊은 reverb 7s · 4컷마다 페이드 블랙 · 1.2초 트랜지션
+            <em>(영화 OST·웅장)</em></li>
+        <li><strong>Hymn</strong> — I-IV-I-V 전통 진행 · 4성부 SATB voicing · church
+            organ FM + choir pad · 드럼 없음 <em>(고전 찬송가)</em></li>
+        <li><strong>Jazz Café</strong> — ii-V-I 재즈 화성(Cmaj7-A7-Dm7-G7) · 2박/4박
+            comping · soft 1-3 kick + brush swing hat <em>(스윙·브러시)</em></li>
+        <li><strong>Upbeat Pop</strong> — I-V-vi-IV pop 진행 · pluck synth + 16분음
+            아르페지오 · 4-on-the-floor kick · 0.3초 빠른 트랜지션 <em>(밝고 빠른 SNS)</em></li>
+        <li><strong>Meditation</strong> — 단일 드론(C 5도 쌓기) · AMSynth drone + LFO
+            shimmer · huge reverb 9s + long delay · 1.5초 매우 긴 트랜지션
+            <em>(명상·요가)</em></li>
+      </ul>
+      <p>모든 무드는 ImprovRNN chord-conditioned 멜로디 + Salamander 진짜
+         피아노 통합(v0.7) · 사용자 음악 파일이 있으면 그게 여전히 우선.</p>
     </div>
   </details>
 
@@ -337,14 +372,24 @@
     // Profiles are picked by BGM mood (or a neutral default when BGM is off).
     // All times in seconds.
     const TRANSITION_PROFILES = {
-      ambient:  { intro: 0.8, outro: 0.8, trans: 1.0,
-                  blackEvery: 0,  blackDuration: 0 },
-      lofi:     { intro: 0.6, outro: 0.6, trans: 0.6,
-                  blackEvery: 3,  blackDuration: 0.4 },
-      acoustic: { intro: 0.4, outro: 0.4, trans: 0.4,
-                  blackEvery: 0,  blackDuration: 0 },
-      _default: { intro: 0.5, outro: 0.5, trans: 0.6,
-                  blackEvery: 0,  blackDuration: 0 },
+      ambient:    { intro: 0.8, outro: 0.8, trans: 1.0,
+                    blackEvery: 0,  blackDuration: 0 },
+      lofi:       { intro: 0.6, outro: 0.6, trans: 0.6,
+                    blackEvery: 3,  blackDuration: 0.4 },
+      acoustic:   { intro: 0.4, outro: 0.4, trans: 0.4,
+                    blackEvery: 0,  blackDuration: 0 },
+      cinematic:  { intro: 1.0, outro: 1.0, trans: 1.2,
+                    blackEvery: 4,  blackDuration: 0.6 },
+      hymn:       { intro: 0.7, outro: 0.7, trans: 0.8,
+                    blackEvery: 0,  blackDuration: 0 },
+      jazz_cafe:  { intro: 0.5, outro: 0.5, trans: 0.5,
+                    blackEvery: 0,  blackDuration: 0 },
+      upbeat_pop: { intro: 0.3, outro: 0.3, trans: 0.3,
+                    blackEvery: 0,  blackDuration: 0 },
+      meditation: { intro: 1.5, outro: 1.5, trans: 1.5,
+                    blackEvery: 0,  blackDuration: 0 },
+      _default:   { intro: 0.5, outro: 0.5, trans: 0.6,
+                    blackEvery: 0,  blackDuration: 0 },
     };
 
     function pickTransitionProfile(mood, wantBgm) {
@@ -630,11 +675,16 @@
 
     // v0.7: chord-symbol mapping per mood. ImprovRNN takes a list of chord
     // symbols (one per quarter note step) and generates a melody that
-    // explicitly fits those changes.
+    // explicitly fits those changes. v0.9: expanded to 8 moods.
     const CHORD_SYMBOLS = {
-      lofi:     ['Cmaj7','Am7','Dm7','G7','Cmaj7','Am7','Fmaj7','G7'],
-      ambient:  ['C','Am','F','G','C','Am','F','G'],
-      acoustic: ['C','G','Am','F','C','G','F','G'],
+      ambient:    ['C','Am','F','G','C','Am','F','G'],
+      lofi:       ['Cmaj7','Am7','Dm7','G7','Cmaj7','Am7','Fmaj7','G7'],
+      acoustic:   ['C','G','Am','F','C','G','F','G'],
+      cinematic:  ['Cm','Ab','Eb','Bb','Cm','Ab','Fm','G'],     // C minor·epic
+      hymn:       ['C','F','C','G','C','F','G','C'],            // I-IV-I-V-I-IV-V-I
+      jazz_cafe:  ['Cmaj7','A7','Dm7','G7','Cmaj7','A7','Dm7','G7'], // I-VI7-ii-V
+      upbeat_pop: ['C','G','Am','F','C','G','F','G'],           // I-V-vi-IV
+      meditation: ['C','C','C','C','C','C','C','C'],            // 단일 드론
     };
 
     async function improvMelody(rnn, mood, barsNeeded, seed) {
@@ -735,52 +785,61 @@
         threshold: -20, ratio: 3, attack: 0.01, release: 0.2,
       }).connect(eq);
 
-      // Reverb tuned per mood (longer for ambient, shorter for acoustic).
-      const verbDecay = mood === 'ambient' ? 5.5
-                      : mood === 'acoustic' ? 1.6
-                      : 3.2;
-      const verbWet = mood === 'ambient' ? 0.55
-                    : mood === 'acoustic' ? 0.28
-                    : 0.45;
-      const verb = new Tone.Reverb({ decay: verbDecay, wet: verbWet });
+      // v0.9: per-mood reverb / chorus / delay profile.
+      const FX = {
+        ambient:    { decay: 5.5, wet: 0.55, chorus: true,  delay: false },
+        lofi:       { decay: 3.2, wet: 0.45, chorus: true,  delay: true  },
+        acoustic:   { decay: 1.6, wet: 0.28, chorus: false, delay: false },
+        cinematic:  { decay: 7.0, wet: 0.60, chorus: false, delay: false },
+        hymn:       { decay: 4.5, wet: 0.55, chorus: false, delay: false },
+        jazz_cafe:  { decay: 2.5, wet: 0.35, chorus: false, delay: false },
+        upbeat_pop: { decay: 1.8, wet: 0.30, chorus: true,  delay: false },
+        meditation: { decay: 9.0, wet: 0.70, chorus: true,  delay: true  },
+      }[mood] || { decay: 3.2, wet: 0.45, chorus: false, delay: false };
+      const verb = new Tone.Reverb({ decay: FX.decay, wet: FX.wet });
       await verb.generate();
       verb.connect(comp);
 
-      // Subtle chorus widens lofi/ambient harmonies; off for clean acoustic.
       let postFx = verb;
-      if (mood === 'lofi' || mood === 'ambient') {
+      if (FX.chorus) {
         const chorus = new Tone.Chorus({
           frequency: 1.2, delayTime: 4, depth: 0.5, wet: 0.35,
         }).start();
         chorus.connect(verb);
         postFx = chorus;
       }
-      // Soft tape-style ping-pong delay for lofi only.
-      if (mood === 'lofi') {
+      if (FX.delay) {
         const delay = new Tone.FeedbackDelay({
-          delayTime: 0.375, feedback: 0.25, wet: 0.2,
+          delayTime: mood === 'meditation' ? 0.75 : 0.375,
+          feedback: 0.25, wet: 0.2,
         });
         delay.connect(postFx);
         postFx = delay;
       }
 
       // ── instruments (per mood) ───────────────────────────────────────────
-      // v0.6: if Salamander piano loaded, lead = real piano sampler. Else
-      // fall back to v0.5 FMSynth/Synth voicing per mood.
+      // v0.6: if Salamander piano loaded, lead = real piano sampler.
+      // v0.9: 8 moods; fallback synth voicing differs per mood, piano release
+      //       and volume also tuned per mood (piano covers most lead duties
+      //       when loaded, but mood-specific pad/drone layers may still join).
       const enh = _enhancementCache || { piano: null, mvae: null };
       let lead, pad = null, leadIsSampler = false;
+      const PIANO_TUNE = {
+        ambient:    { release: 2.2, volume: -10 },
+        lofi:       { release: 1.4, volume: -8  },
+        acoustic:   { release: 0.6, volume: -6  },
+        cinematic:  { release: 3.0, volume: -8  },
+        hymn:       { release: 2.4, volume: -7  },
+        jazz_cafe:  { release: 0.9, volume: -6  },
+        upbeat_pop: { release: 0.4, volume: -6  },
+        meditation: { release: 5.0, volume: -14 },
+      }[mood] || { release: 1.4, volume: -8 };
       if (enh.piano) {
-        // Use the Salamander piano as a single shared lead across all moods.
-        // Tone.Sampler is polyphonic by default and re-pitches missing keys.
         lead = enh.piano;
-        lead.release = mood === 'acoustic' ? 0.6
-                     : mood === 'ambient'  ? 2.2
-                     : 1.4;
-        lead.volume.value = mood === 'ambient' ? -10
-                          : mood === 'lofi'    ? -8
-                          : -6;
+        lead.release = PIANO_TUNE.release;
+        lead.volume.value = PIANO_TUNE.volume;
         leadIsSampler = true;
-      } else if (mood === 'lofi') {
+      } else if (mood === 'lofi' || mood === 'jazz_cafe') {
         lead = new Tone.PolySynth(Tone.FMSynth, {
           harmonicity: 2, modulationIndex: 6,
           oscillator: { type: 'sine' },
@@ -788,19 +847,45 @@
           modulation: { type: 'triangle' },
           modulationEnvelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.5 },
         }).set({ volume: -9 });
-      } else if (mood === 'acoustic') {
+      } else if (mood === 'acoustic' || mood === 'upbeat_pop') {
         lead = new Tone.PolySynth(Tone.FMSynth, {
           harmonicity: 3, modulationIndex: 4,
           oscillator: { type: 'sine' },
           envelope: { attack: 0.005, decay: 0.5, sustain: 0.15, release: 0.8 },
         }).set({ volume: -7 });
-      } else { // ambient
+      } else if (mood === 'hymn') {
+        // Church organ-ish FM with steady sustain.
+        lead = new Tone.PolySynth(Tone.FMSynth, {
+          harmonicity: 1.5, modulationIndex: 8,
+          oscillator: { type: 'square' },
+          envelope: { attack: 0.05, decay: 0.3, sustain: 0.9, release: 1.6 },
+          modulation: { type: 'sine' },
+          modulationEnvelope: { attack: 0.05, decay: 0.5, sustain: 0.5, release: 1.0 },
+        }).set({ volume: -10 });
+      } else if (mood === 'cinematic') {
+        // Slow swelling pad — sine + slow attack/release.
+        lead = new Tone.PolySynth(Tone.AMSynth, {
+          harmonicity: 1.0,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 1.8, decay: 0.8, sustain: 0.85, release: 4.0 },
+          modulation: { type: 'sine' },
+        }).set({ volume: -10 });
+      } else if (mood === 'meditation') {
+        // Drone — extremely slow envelope, single sustained color.
+        lead = new Tone.PolySynth(Tone.AMSynth, {
+          harmonicity: 1.5,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 3.0, decay: 1.0, sustain: 0.9, release: 6.0 },
+          modulation: { type: 'triangle' },
+        }).set({ volume: -16 });
+      } else { // ambient (default)
         lead = new Tone.PolySynth(Tone.Synth, {
           oscillator: { type: 'sine' },
           envelope: { attack: 1.2, decay: 1.0, sustain: 0.75, release: 3.0 },
         }).set({ volume: -12 });
       }
-      // Ambient layer pad (kept even when piano is present, for shimmer).
+
+      // Mood-specific extra layers.
       if (mood === 'ambient') {
         pad = new Tone.PolySynth(Tone.AMSynth, {
           harmonicity: 1.5,
@@ -808,6 +893,32 @@
           envelope: { attack: 2.0, decay: 1.0, sustain: 0.8, release: 4.0 },
           modulation: { type: 'sine' },
         }).set({ volume: leadIsSampler ? -22 : -18 });
+        pad.connect(postFx);
+      } else if (mood === 'cinematic') {
+        // Low brass-like pad an octave below lead for weight.
+        pad = new Tone.PolySynth(Tone.FMSynth, {
+          harmonicity: 0.5, modulationIndex: 12,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 1.0, decay: 0.5, sustain: 0.9, release: 3.0 },
+        }).set({ volume: -16 });
+        pad.connect(postFx);
+      } else if (mood === 'hymn') {
+        // Soft choir-pad layer behind organ.
+        pad = new Tone.PolySynth(Tone.AMSynth, {
+          harmonicity: 2.0,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 2.5 },
+          modulation: { type: 'sine' },
+        }).set({ volume: -20 });
+        pad.connect(postFx);
+      } else if (mood === 'meditation') {
+        // Drone shimmer overlay one octave up.
+        pad = new Tone.PolySynth(Tone.AMSynth, {
+          harmonicity: 3.0,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 4.0, decay: 1.0, sustain: 0.9, release: 8.0 },
+          modulation: { type: 'sine' },
+        }).set({ volume: -22 });
         pad.connect(postFx);
       }
       lead.connect(postFx);
@@ -821,7 +932,7 @@
       }).set({ volume: -8 });
       bass.connect(comp);   // bass bypasses reverb for clarity
 
-      // Drums — per mood.
+      // Drums — per mood (v0.9: 8-mood matrix).
       let kick = null, hat = null, rim = null;
       if (mood === 'lofi') {
         kick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 6,
@@ -838,11 +949,32 @@
         kick = new Tone.MembraneSynth({ pitchDecay: 0.04, octaves: 5,
           envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.15 },
           volume: -8 }).connect(comp);
+      } else if (mood === 'cinematic') {
+        // Deep timpani-like kick.
+        kick = new Tone.MembraneSynth({ pitchDecay: 0.08, octaves: 8,
+          envelope: { attack: 0.002, decay: 0.8, sustain: 0, release: 0.5 },
+          volume: -3 }).connect(comp);
+      } else if (mood === 'jazz_cafe') {
+        // Soft kick + brushed hi-hat (low-pass shaped white noise).
+        kick = new Tone.MembraneSynth({ pitchDecay: 0.03, octaves: 4,
+          envelope: { attack: 0.002, decay: 0.25, sustain: 0, release: 0.12 },
+          volume: -10 }).connect(comp);
+        hat = new Tone.NoiseSynth({ noise: { type: 'pink' },
+          envelope: { attack: 0.005, decay: 0.08, sustain: 0 },
+          volume: -22 }).connect(comp);
+      } else if (mood === 'upbeat_pop') {
+        // 4-on-the-floor + bright hat.
+        kick = new Tone.MembraneSynth({ pitchDecay: 0.04, octaves: 5,
+          envelope: { attack: 0.001, decay: 0.28, sustain: 0, release: 0.12 },
+          volume: -4 }).connect(comp);
+        hat = new Tone.NoiseSynth({ noise: { type: 'white' },
+          envelope: { attack: 0.001, decay: 0.04, sustain: 0 },
+          volume: -22 }).connect(comp);
       }
-      // ambient: no percussion
+      // ambient·hymn·meditation: no percussion
 
       // ── chord progressions: 8-bar phrase per mood (A-A-B-A) ─────────────
-      // All in C major. CCM/inspirational friendly.
+      // v0.9: 8 moods; minor-key cinematic, drone meditation, classical hymn.
       const progressions = {
         // Cmaj7-Am7-Dm7-G7 | Cmaj7-Am7-Fmaj7-G7
         lofi: [
@@ -855,7 +987,6 @@
           { chord: ['F3','A3','C4','E4'], root: 'F1' },
           { chord: ['G3','B3','D4','F4'], root: 'G1' },
         ],
-        // I-vi-IV-V | I-vi-IV-V (gentle hymn-like)
         ambient: [
           { chord: ['C4','E4','G4'], root: 'C2' },
           { chord: ['A3','C4','E4'], root: 'A1' },
@@ -866,7 +997,6 @@
           { chord: ['F3','A3','C4'], root: 'F1' },
           { chord: ['G3','B3','D4'], root: 'G1' },
         ],
-        // I-V-vi-IV | I-V-vi-IV (pop-folk·worship intro feel)
         acoustic: [
           { chord: ['C4','E4','G4'], root: 'C2' },
           { chord: ['G3','B3','D4'], root: 'G1' },
@@ -876,6 +1006,61 @@
           { chord: ['G3','B3','D4'], root: 'G1' },
           { chord: ['F3','A3','C4'], root: 'F1' },
           { chord: ['G3','B3','D4'], root: 'G1' },
+        ],
+        // Cm-Ab-Eb-Bb | Cm-Ab-Fm-G (C minor·cinematic epic)
+        cinematic: [
+          { chord: ['C4','D#4','G4'],  root: 'C2' },
+          { chord: ['G#3','C4','D#4'], root: 'G#1' },
+          { chord: ['D#4','G4','A#4'], root: 'D#2' },
+          { chord: ['A#3','D4','F4'],  root: 'A#1' },
+          { chord: ['C4','D#4','G4'],  root: 'C2' },
+          { chord: ['G#3','C4','D#4'], root: 'G#1' },
+          { chord: ['F3','G#3','C4'],  root: 'F1' },
+          { chord: ['G3','B3','D4'],   root: 'G1' },
+        ],
+        // I-IV-I-V-I-IV-V-I (전통 찬송가·SATB voicing)
+        hymn: [
+          { chord: ['C4','E4','G4','C5'], root: 'C2' },
+          { chord: ['F3','A3','C4','F4'], root: 'F1' },
+          { chord: ['C4','E4','G4','C5'], root: 'C2' },
+          { chord: ['G3','B3','D4','G4'], root: 'G1' },
+          { chord: ['C4','E4','G4','C5'], root: 'C2' },
+          { chord: ['F3','A3','C4','F4'], root: 'F1' },
+          { chord: ['G3','B3','D4','G4'], root: 'G1' },
+          { chord: ['C4','E4','G4','C5'], root: 'C2' },
+        ],
+        // Cmaj7-A7-Dm7-G7 | Cmaj7-A7-Dm7-G7 (ii-V-I·jazz)
+        jazz_cafe: [
+          { chord: ['C4','E4','G4','B4'],  root: 'C2' },
+          { chord: ['A3','C#4','E4','G4'], root: 'A1' },
+          { chord: ['D4','F4','A4','C5'],  root: 'D2' },
+          { chord: ['G3','B3','D4','F4'],  root: 'G1' },
+          { chord: ['C4','E4','G4','B4'],  root: 'C2' },
+          { chord: ['A3','C#4','E4','G4'], root: 'A1' },
+          { chord: ['D4','F4','A4','C5'],  root: 'D2' },
+          { chord: ['G3','B3','D4','F4'],  root: 'G1' },
+        ],
+        // I-V-vi-IV·pop progression (Axis of Awesome). C-G-Am-F.
+        upbeat_pop: [
+          { chord: ['C4','E4','G4'], root: 'C2' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+          { chord: ['A3','C4','E4'], root: 'A1' },
+          { chord: ['F3','A3','C4'], root: 'F1' },
+          { chord: ['C4','E4','G4'], root: 'C2' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+          { chord: ['F3','A3','C4'], root: 'F1' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+        ],
+        // Single drone chord on C — stacked fifths for openness.
+        meditation: [
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
+          { chord: ['C3','G3','C4','E4','G4'], root: 'C2' },
         ],
       };
       const phrase = progressions[mood] || progressions.ambient;
@@ -927,27 +1112,45 @@
           bass.triggerAttackRelease(next, 0.4, t + barSec - 0.4, 0.55);
         }
 
-        // Chord/pad layer.
-        if (mood === 'ambient') {
+        // Chord / pad / arpeggio per mood (v0.9 8-mood matrix).
+        if (mood === 'ambient' || mood === 'cinematic' || mood === 'hymn'
+            || mood === 'meditation') {
+          // Sustained chord (whole bar) + optional pad layer.
           lead.triggerAttackRelease(slot.chord, barSec * 0.92, t, vel());
           if (pad) {
+            const shift = mood === 'cinematic' ? -12  // pad octave down
+                        : mood === 'hymn'      ? 0    // SATB - no transpose
+                        : 12;                          // ambient/meditation up
             const padNotes = slot.chord.map((n) =>
-              Tone.Frequency(n).transpose(12).toNote());
-            pad.triggerAttackRelease(padNotes, barSec * 0.92, t, 0.5);
+              Tone.Frequency(n).transpose(shift).toNote());
+            pad.triggerAttackRelease(padNotes, barSec * 0.92, t,
+              mood === 'meditation' ? 0.4 : 0.5);
           }
-        } else if (mood === 'acoustic') {
-          // Lead = arpeggio over chord notes (unless melody overlay covers it)
+        } else if (mood === 'acoustic' || mood === 'upbeat_pop') {
           if (!melodyNotes) {
             const notes = slot.chord;
-            for (let k = 0; k < 8; k++) {
+            const arpStep = mood === 'upbeat_pop' ? 0.25 : 0.5;
+            const arpCount = mood === 'upbeat_pop' ? 16 : 8;
+            const arpDur = mood === 'upbeat_pop' ? 0.22 : 0.42;
+            for (let k = 0; k < arpCount; k++) {
               const note = notes[k % notes.length];
-              lead.triggerAttackRelease(note, 0.42, t + k * 0.5, vel());
+              lead.triggerAttackRelease(note, arpDur, t + k * arpStep, vel());
             }
           } else {
-            // Just lay down a held chord pad underneath the ML melody
             lead.triggerAttackRelease(slot.chord, barSec * 0.9, t, 0.45);
           }
-        } else { // lofi
+        } else if (mood === 'jazz_cafe') {
+          // Comping: chord stab on beat 2 and 4 (Bossa-ish), no melody
+          // when ImprovRNN is up; otherwise stride-ish top notes.
+          lead.triggerAttackRelease(slot.chord, 0.45, t + 1.0, vel() * 0.9);
+          lead.triggerAttackRelease(slot.chord, 0.45, t + 3.0, vel() * 0.9);
+          if (!melodyNotes) {
+            for (let k = 0; k < 4; k++) {
+              const top = slot.chord[(k + 2) % slot.chord.length];
+              lead.triggerAttackRelease(top, 0.3, t + k * 1.0 + 0.25, vel() * 0.7);
+            }
+          }
+        } else { // lofi (default)
           if (!melodyNotes) {
             lead.triggerAttackRelease(
               [slot.chord[0], slot.chord[1]], barSec * 0.9, t, 0.6);
@@ -959,26 +1162,50 @@
                 top[k % top.length], 0.7, t + positions[k], vel());
             }
           } else {
-            // Sustained mid-pad under ML melody
             lead.triggerAttackRelease(
               [slot.chord[0], slot.chord[1]], barSec * 0.9, t, 0.5);
           }
         }
 
-        // Drums.
+        // Drums (v0.9 8-mood matrix).
         if (kick && mood === 'lofi') {
           kick.triggerAttackRelease('C2', 0.25, t, 0.85);
           kick.triggerAttackRelease('C2', 0.25, t + 2, 0.7);
         } else if (kick && mood === 'acoustic') {
           if (i % 2 === 0) kick.triggerAttackRelease('C2', 0.2, t, 0.7);
+        } else if (kick && mood === 'cinematic') {
+          // Big timpani hit on bar 1 + soft roll on bar before phrase change
+          if (i % 4 === 0) kick.triggerAttackRelease('C2', 0.5, t, 0.95);
+          if (i % 4 === 3) kick.triggerAttackRelease('C2', 0.3, t + 3.5, 0.5);
+        } else if (kick && mood === 'jazz_cafe') {
+          // Soft 1-3 kick (jazz feathered pulse)
+          kick.triggerAttackRelease('C2', 0.18, t, 0.55);
+          kick.triggerAttackRelease('C2', 0.18, t + 2, 0.45);
+        } else if (kick && mood === 'upbeat_pop') {
+          // 4-on-the-floor
+          for (let k = 0; k < 4; k++) {
+            kick.triggerAttackRelease('C2', 0.18, t + k, 0.75);
+          }
         }
-        if (hat) {
+        if (hat && mood === 'lofi') {
           for (let k = 0; k < 8; k++) {
             const vol = (k % 2 === 1) ? 0.08 : 0.04;
             hat.triggerAttackRelease(0.04, t + k * 0.5, vol);
           }
+        } else if (hat && mood === 'jazz_cafe') {
+          // Brush swing: long-short-short on each beat
+          for (let k = 0; k < 4; k++) {
+            hat.triggerAttackRelease(0.12, t + k + 0.0, 0.10);
+            hat.triggerAttackRelease(0.04, t + k + 0.66, 0.05);
+          }
+        } else if (hat && mood === 'upbeat_pop') {
+          // 8th-note bright hat with offbeat accent
+          for (let k = 0; k < 8; k++) {
+            const vol = (k % 2 === 1) ? 0.10 : 0.05;
+            hat.triggerAttackRelease(0.03, t + k * 0.5, vol);
+          }
         }
-        if (rim && i % 2 === 1) {
+        if (rim && mood === 'lofi' && i % 2 === 1) {
           rim.triggerAttackRelease('C5', 0.05, t + 1, 0.4);
           rim.triggerAttackRelease('C5', 0.05, t + 3, 0.4);
         }
@@ -1155,7 +1382,7 @@
           : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷.`,
         hashtags,
         ai_disclosure: audioMode.startsWith('bgm:'),   // procedural BGM = AI-generated
-        source: `shorts-forge-browser v0.8 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName})`,
+        source: `shorts-forge-browser v0.9 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName})`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
         audio_source: audioMode === 'owner' ? audioFile.name : audioMode,

@@ -103,6 +103,23 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v1.3 결정 (2026-05-25)
+
+- **D-title-card**: 사용자 "앞에 제목 넣을지 말지·중앙 큰 글자·시간 선택"
+  요청. ③-2 카드(체크박스+텍스트+초)·resolvePhase에 `title` phase 추가·
+  drawTitle (120px bold·중앙·자체 fade in/out 0.5초씩)·totalTimeWithTransitions
+  에 titleSec offset·메타 JSON `title` 객체.
+- **D-audio-duck-ramp**: 사용자 "제목 동안 음량 줄이고 천천히 원래로" 요청.
+  Web Audio AudioParam linearRampToValueAtTime로 BGM master gain(0.2→0.85)
+  + 본인 음악 GainNode(0.2→1.0) 동일 패턴 적용. ramp window = title 끝나기
+  0.5초 전부터 끝나고 1.5초까지 (~2초). 프레임 정확도.
+- **D-validation**: title이 비활성/공백이면 titleSec=0·기존 흐름 그대로
+  (회귀 0). resolvePhase·totalTime·drawPhase·makeBgm/Owner audio가 일관되게
+  titleSec 0 케이스를 노옵 처리.
+- **D-no-cdn**: CDN 변경 0. INVARIANT 보존(자가검증).
+- **잔존 (별 turn)**: 제목 폰트/색 옵션·자막처럼 위치 옵션·끝 크레딧·로고
+  오버레이·제목 + 부제목 2줄·제목 카드에 사진 1장 배경.
+
 ### v1.2 결정 (2026-05-25)
 
 - **D-captions-burnin**: 사용자 "자막 삽입 가능하게" 요청. textarea(④-2)
@@ -283,6 +300,11 @@
 
 ## 변경 노트
 
+- **v1.3 (2026-05-25)** — 제목 카드 + 음악 음량 자동 ramp-up. ③-2 카드
+  (체크박스·텍스트·초 1-8)·resolvePhase에 `title` phase·drawTitle (120px
+  bold·중앙·fade in/out)·BGM master gain + 본인 음악 GainNode가 동일하게
+  title 중 0.2 → 끝나기 0.5초 전부터 1.5초간 원래 음량으로 linear ramp.
+  메타 JSON title 객체. CDN 변경 0·INVARIANT 보존.
 - **v1.2 (2026-05-25)** — 자막 burn-in 시스템 도입 (④-2 textarea·한 줄당
   한 컷·자동 정렬 결과 순서대로). Canvas 2D fillText + strokeText + 둥근
   검은 배경. 한국어 wrap(word + char fallback)·최대 4줄·시스템 폰트.

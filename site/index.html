@@ -110,6 +110,28 @@
   </div>
 
   <div class="card">
+    <label>
+      <input id="titleEnabled" type="checkbox" /> ③-2 제목 표시 (옵션)
+    </label>
+    <div class="row" style="margin-top:0.5rem">
+      <div style="grid-column:1/span 2">
+        <input id="titleText" type="text" placeholder="예: 우리 가족 봄 나들이"
+               maxlength="80" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:0.5rem">
+      <div>
+        <label for="titleSec" style="font-weight:500">제목 표시 초 (1.0–8.0)</label>
+        <input id="titleSec" type="number" value="3" min="1" max="8" step="0.5" />
+      </div>
+      <div></div>
+    </div>
+    <div class="hint">체크하면 첫 사진 *전에* 검은 배경 위에 큰 글자로 제목이
+                      뜹니다. 제목 표시 동안 음악이 작게 → 끝날 때 천천히 원래
+                      음량으로 돌아옵니다 (~1.5초 ramp-up).</div>
+  </div>
+
+  <div class="card">
     <label for="lex">④ 트렌디 키워드 (옵션) — 한 줄에 한 단어</label>
     <textarea id="lex" class="mono"
               placeholder="# 주석은 '#'으로 시작&#10;운동&#10;다이어트&#10;브이로그&#10;챌린지"></textarea>
@@ -188,6 +210,29 @@
       <p style="margin-top:0.5rem;color:#666">
         💡 출처별 라이선스(크레딧·상업 사용)이 다르니 한 번 읽어 보세요.
         영상 설명(③)에 크레딧 한 줄을 적어 두면 깔끔합니다.
+      </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>🎬 제목 카드 (v1.3 — 인트로 + 음량 ramp-up)</summary>
+    <div style="font-size:0.9rem;color:inherit;line-height:1.6">
+      <p>
+        ③-2 카드를 체크하고 제목을 입력하면 영상 *맨 앞*에 검은 배경 위에 큰
+        글자로 제목이 표시됩니다(자체 0.5초 fade-in + hold + 0.5초 fade-out).
+        제목 동안에는 음악이 작게(<code>gain 0.2</code>) 유지되고, 제목이
+        끝나기 0.5초 전부터 1.5초간 천천히 원래 음량(<code>0.85</code>)으로
+        ramp-up 합니다 — 약 2초간의 자연스러운 음악 부드러운 등장.
+      </p>
+      <p>
+        <strong>음량 ramp 동작</strong>: BGM(자동 BGM)·본인 음악 파일 모두 동일
+        — AudioParam linearRampToValueAtTime로 *프레임 정확도* 페이드. 메타
+        JSON `title.text`·`title.duration_sec`·`title.audio_duck_ramp_sec` 기록.
+      </p>
+      <p>
+        <strong>제목 표시 초 (1.0–8.0)</strong>: 자체 0.5초+0.5초 페이드를 제외한
+        실 hold 시간 = 입력값 - 1.0초. 예: 3초 입력 = 0.5초 fade-in + 2초 hold +
+        0.5초 fade-out. 총 영상 길이가 그만큼 늘어납니다.
       </p>
     </div>
   </details>
@@ -586,12 +631,26 @@
 
     // v1.1: per-cut hold durations let videos run for their full length
     // while photos still use the user's "seconds per photo" value.
+    // v1.3: optional title phase before everything else.
     // Given total elapsed `t`, compute which phase the renderer is in.
-    function resolvePhase(t, holdSecs, prof, blackBars) {
+    function resolvePhase(t, holdSecs, prof, blackBars, titleSec) {
       const n = holdSecs.length;
       if (n <= 0) return { kind: 'done' };
-      if (t < prof.intro) return { kind: 'intro', alpha: t / prof.intro };
-      const afterIntro = t - prof.intro;
+      const ts = titleSec || 0;
+      if (ts > 0 && t < ts) {
+        // Title with self-contained fade-in (0.5s) and fade-out (0.5s).
+        const fadeIn = Math.min(0.5, ts / 3);
+        const fadeOut = Math.min(0.5, ts / 3);
+        let alpha = 1;
+        if (t < fadeIn) alpha = t / fadeIn;
+        else if (t > ts - fadeOut) alpha = Math.max(0, (ts - t) / fadeOut);
+        return { kind: 'title', alpha };
+      }
+      const tAfterTitle = t - ts;
+      if (tAfterTitle < prof.intro) {
+        return { kind: 'intro', alpha: tAfterTitle / prof.intro };
+      }
+      const afterIntro = tAfterTitle - prof.intro;
       let offset = 0;
       for (let i = 0; i < n; i++) {
         const isLast = (i === n - 1);
@@ -620,10 +679,10 @@
       return { kind: 'done' };
     }
 
-    function totalTimeWithTransitions(holdSecs, prof, blackBars) {
+    function totalTimeWithTransitions(holdSecs, prof, blackBars, titleSec) {
       const n = holdSecs.length;
       if (n <= 0) return 0;
-      let total = prof.intro;
+      let total = (titleSec || 0) + prof.intro;
       for (let i = 0; i < n; i++) {
         total += holdSecs[i];
         if (i < n - 1) {
@@ -645,9 +704,14 @@
       return out;
     }
 
-    function drawPhase(ctx, images, phase, captions) {
+    function drawPhase(ctx, images, phase, captions, titleText) {
       clearFrame(ctx);
       if (phase.kind === 'done') return;
+      if (phase.kind === 'title') {
+        // Solid black background + large centered title.
+        drawTitle(ctx, titleText, phase.alpha);
+        return;
+      }
       if (phase.kind === 'intro') {
         ctx.globalAlpha = phase.alpha;
         drawCoverCrop(ctx, images[0]);
@@ -727,6 +791,40 @@
       return lines.slice(0, 4);   // hard cap 4 visual lines
     }
 
+    // v1.3: full-frame title card. Black background already filled by
+    // clearFrame; we layer the centered text on top.
+    function drawTitle(ctx, text, alpha) {
+      if (!text || !text.trim()) return;
+      const padX = W * 0.08;
+      const maxW = W - padX * 2;
+      const fontSize = 120;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `900 ${fontSize}px system-ui, -apple-system, ` +
+                 `"Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Reuse caption wrapper for word/char-aware Korean wrap.
+      const lines = _wrapCaption(ctx, text, maxW);
+      const lineHeight = Math.round(fontSize * 1.25);
+      const totalH = lines.length * lineHeight;
+      const centerY = H / 2;
+      const firstY = centerY - totalH / 2 + lineHeight / 2;
+
+      ctx.lineWidth = 8;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = `rgba(0,0,0,${0.85 * alpha})`;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      for (let i = 0; i < lines.length; i++) {
+        const y = firstY + i * lineHeight;
+        ctx.strokeText(lines[i], W / 2, y);
+        ctx.fillText(lines[i], W / 2, y);
+      }
+      ctx.restore();
+    }
+
     function drawCaption(ctx, text, opts = {}) {
       if (!text || !text.trim()) return;
       const alpha = opts.alpha ?? 1;
@@ -801,7 +899,10 @@
     const extFor = (mime) => mime.startsWith('video/mp4') ? 'mp4' : 'webm';
 
     // ── owner audio stream (v0.2 mirror of parent D2 option 2) ─────────────
-    async function makeOwnerAudioStream(file, totalSec) {
+    // v1.3: optional title-card ducking — if titleSec > 0, gain starts at
+    // 0.2, holds through the title, then linear-ramps to 1.0 over the last
+    // 0.5s of the title plus 1.5s after — totaling ~2s ramp.
+    async function makeOwnerAudioStream(file, totalSec, titleSec = 0) {
       const arr = await file.arrayBuffer();
       const AC = window.AudioContext || window.webkitAudioContext;
       const ctx = new AC({ sampleRate: 48000 });
@@ -810,7 +911,17 @@
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = buf.duration < totalSec;
-      const gain = ctx.createGain(); gain.gain.value = 1.0;
+      const gain = ctx.createGain();
+      const t0 = ctx.currentTime;
+      if (titleSec > 0) {
+        const rampStart = Math.max(0, titleSec - 0.5);
+        const rampEnd = titleSec + 1.5;
+        gain.gain.setValueAtTime(0.2, t0);
+        gain.gain.setValueAtTime(0.2, t0 + rampStart);
+        gain.gain.linearRampToValueAtTime(1.0, t0 + rampEnd);
+      } else {
+        gain.gain.value = 1.0;
+      }
       src.connect(gain).connect(dest);
       src.start(0);
       src.stop(ctx.currentTime + totalSec + 0.1);
@@ -1039,7 +1150,7 @@
     //
     // v0.5 features preserved: 8-bar phrase A-A-B-A, dynamics, mood-specific
     // effects chain, bass voice, mood-specific drums.
-    async function makeBgmStream(mood, totalSec, seed) {
+    async function makeBgmStream(mood, totalSec, seed, titleSec = 0) {
       if (typeof Tone === 'undefined') {
         console.warn('Tone.js unavailable — BGM disabled.');
         return null;
@@ -1052,10 +1163,22 @@
       // Tone graph: voices → effects → compressor → EQ → masterOut →
       //              (a) raw MediaStreamDestination (captured into video)
       //              (b) speaker (so user can also hear it live — optional)
+      // v1.3: title-card ducking. Master gain starts at 0.2 during the
+      // title phase, then linear-ramps up to 0.85 across the title's
+      // last 0.5s + 1.5s afterward (~2s total). With no title, gain is
+      // simply 0.85 from the start.
       const masterOut = new Tone.Gain(0.85);
-      // Connect master to MediaStreamDestination (for recording) AND speaker.
+      if (titleSec > 0) {
+        const t0 = rawCtx.currentTime;
+        const rampStart = Math.max(0, titleSec - 0.5);
+        const rampEnd = titleSec + 1.5;
+        const g = masterOut.gain;
+        g.cancelScheduledValues(t0);
+        g.setValueAtTime(0.2, t0);
+        g.setValueAtTime(0.2, t0 + rampStart);
+        g.linearRampToValueAtTime(0.85, t0 + rampEnd);
+      }
       masterOut.connect(dest);
-      // Speakers are best-effort — some browsers block until first gesture.
       try { masterOut.toDestination(); } catch {}
 
       const eq = new Tone.EQ3({ low: -3, mid: 0, high: 2 }).connect(masterOut);
@@ -1535,6 +1658,10 @@
       const memo   = (document.getElementById('memo').value || '').trim();
       const lexKws = parseLex(lexEl.value);
       const captionsText = document.getElementById('captions').value || '';
+      const titleEnabled = document.getElementById('titleEnabled').checked;
+      const titleText = (document.getElementById('titleText').value || '').trim();
+      const titleSecRaw = parseFloat(document.getElementById('titleSec').value) || 3;
+      const titleSec = (titleEnabled && titleText) ? Math.max(1, Math.min(8, titleSecRaw)) : 0;
       const audioFile = document.getElementById('audio').files[0] || null;
       const wantBgm = bgmEnabled.checked;
       const mood = bgmMood.value;
@@ -1567,7 +1694,8 @@
       });
       const transProfile = pickTransitionProfile(mood, wantBgm);
       const blackBars = planBlackTransitions(images.length, transProfile);
-      const total = totalTimeWithTransitions(holdSecs, transProfile, blackBars);
+      // v1.3: titleSec offsets the entire downstream timeline.
+      const total = totalTimeWithTransitions(holdSecs, transProfile, blackBars, titleSec);
       // v1.2: parse captions aligned to the auto-sorted media order.
       const captions = parseCaptions(captionsText, images.length);
       const captionsUsed = captions.filter((c) => c && c.trim()).length;
@@ -1591,7 +1719,7 @@
         try {
           setStatus(`음악 디코드 중… (${audioFile.name})`);
           const { stream: aStream, ctx: aCtx } =
-            await makeOwnerAudioStream(audioFile, total);
+            await makeOwnerAudioStream(audioFile, total, titleSec);
           audioCtx = aCtx;
           for (const t of aStream.getAudioTracks()) combinedStream.addTrack(t);
           audioMode = 'owner';
@@ -1601,11 +1729,9 @@
       }
       if (audioMode === 'silent' && wantBgm) {
         try {
-          // v0.6: try to load Salamander + Magenta first (lazy, cached).
-          // Each side fails independently; makeBgmStream picks tier accordingly.
           await loadEnhancements(setStatus);
           setStatus(`자동 BGM 생성 중… (${mood})`);
-          bgmHandle = await makeBgmStream(mood, total, /*seed*/ 1);
+          bgmHandle = await makeBgmStream(mood, total, /*seed*/ 1, titleSec);
           if (bgmHandle) {
             for (const t of bgmHandle.stream.getAudioTracks())
               combinedStream.addTrack(t);
@@ -1642,12 +1768,10 @@
       while (true) {
         const e = (performance.now() - t0) / 1000;
         if (e >= total) break;
-        const phase = resolvePhase(e, holdSecs, transProfile, blackBars);
+        const phase = resolvePhase(e, holdSecs, transProfile, blackBars, titleSec);
         if (phase.kind === 'done') break;
 
-        // v1.0: figure out which cut(s) are currently visible — drive video
-        // play/pause from that. During holds and intro/outro it's one cut;
-        // during cross/fadeBlack it's two (the outgoing + incoming).
+        // v1.0: drive video play/pause from current cut(s).
         const active = new Set();
         if (phase.kind === 'intro' || phase.kind === 'cut') {
           active.add(phase.i ?? 0);
@@ -1656,18 +1780,17 @@
         } else if (phase.kind === 'outro') {
           active.add(images.length - 1);
         }
-        // Detect first entry into a new cut — rewind that cut's video so
-        // it plays from its own start (not continuing from previous run).
         const currentCut = phase.i ?? (phase.kind === 'outro' ? images.length - 1 : 0);
-        if (currentCut !== lastActiveCut) {
+        if (phase.kind !== 'title' && currentCut !== lastActiveCut) {
           resetVideoForCut(media, currentCut);
           lastActiveCut = currentCut;
         }
-        ensureVideoState(media, active);
+        ensureVideoState(media, phase.kind === 'title' ? new Set() : active);
 
-        drawPhase(ctx, images, phase, captions);
+        drawPhase(ctx, images, phase, captions, titleText);
         const mediaTag = (i) => media[i]?.kind === 'video' ? '🎬' : '🖼';
-        const label = phase.kind === 'intro'    ? '인트로 페이드'
+        const label = phase.kind === 'title'    ? `🎬 제목: ${titleText}`
+                    : phase.kind === 'intro'    ? '인트로 페이드'
                     : phase.kind === 'outro'    ? '아웃트로 페이드'
                     : phase.kind === 'cross'    ? `${mediaTag(phase.i)}${phase.i + 1}→${mediaTag(phase.i + 1)}${phase.i + 2} 크로스페이드`
                     : phase.kind === 'fadeBlack' ? `${mediaTag(phase.i)}${phase.i + 1}→${mediaTag(phase.i + 1)}${phase.i + 2} 페이드 블랙`
@@ -1702,7 +1825,7 @@
           : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷 (사진 ${photoCount}·동영상 ${videoCount}).`,
         hashtags,
         ai_disclosure: audioMode.startsWith('bgm:'),
-        source: `shorts-forge-browser v1.2 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount}; video_hold=full_duration; captions=${captionsUsed}/${images.length})`,
+        source: `shorts-forge-browser v1.3 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount}; video_hold=full_duration; captions=${captionsUsed}/${images.length}; title=${titleSec > 0 ? 'on' : 'off'})`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
         audio_source: audioMode === 'owner' ? audioFile.name : audioMode,
@@ -1719,6 +1842,11 @@
         })),
         captions_used: captionsUsed,
         captions_total_slots: images.length,
+        title: titleSec > 0 ? {
+          text: titleText,
+          duration_sec: titleSec,
+          audio_duck_ramp_sec: 2,
+        } : null,
         container_mime: mime,
         transitions: {
           profile: transProfileName,

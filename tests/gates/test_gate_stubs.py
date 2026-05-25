@@ -9,16 +9,14 @@ import pytest
 from shorts_forge import cli
 from shorts_forge.spine.gates import GATES, GateBlocked
 from shorts_forge.stages.s1_normalize import procure_decoder
-from shorts_forge.stages.s3_select_order import energy_arc_reorder
-from shorts_forge.stages.s5_audio import load_library
-from shorts_forge.llm.template_fallback import resolve_slang
 
-# @gate_blocked 래퍼는 인자를 무시하고 무조건 raise → 0-인자 호출로 일괄 검증
+# @gate_blocked 래퍼는 인자를 무시하고 무조건 raise → 0-인자 호출로 일괄 검증.
+# D5(energy_arc_reorder·resolve_slang)는 v1.0 currency 2026-05-25 (option 2) 로
+# 해소·@gate_blocked 제거. D2(load_library)는 v1.2 currency 2026-05-25 (option
+# 2 owner manual music folder)로 해소·@gate_blocked 제거 — 본 파라미터 표에서
+# 제외(GATES 레지스트리 등록은 PRD §10 정합으로 유지·아래 test_gate_registry_complete 참조).
 @pytest.mark.parametrize("fn,gid", [
     (procure_decoder, "D9"),     # HEVC 디코더 조달(HARD-BLOCKED)
-    (energy_arc_reorder, "D5"),  # 에너지아크/트렌드(잠정)
-    (load_library, "D2"),        # 음악 라이브러리 콘텐츠(HARD-BLOCKED)
-    (resolve_slang, "D5"),       # 슬랭 렉시콘(잠정)
     (cli.publish, "D3"),         # 자동게시(B3 보류·HARD-BLOCKED)
 ])
 def test_blocked_path_raises_correct_gate(fn, gid):
@@ -43,7 +41,9 @@ def test_cli_has_no_publish_verb():
 
 
 def test_full_pipeline_never_raises_gateblocked(synthetic_inbox, ascii_root):
-    # S5 내부 load_library 호출→GateBlocked 포착이 정상(차단 동작 검증)
+    # Full pipeline (dry-run) must not raise GateBlocked from any remaining
+    # gated path. D2 was unblocked in v1.2 (owner manual music folder);
+    # empty music folder → silent_inc1 fallback (no exception path).
     rc = cli.cmd_run(str(synthetic_inbox), root=str(ascii_root),
                      dry_run=True, seed=1)
     assert rc == 0

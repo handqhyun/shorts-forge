@@ -18,7 +18,7 @@ from shorts_forge.stages.s1_normalize import S1Normalize
 from shorts_forge.stages.s2_ingest_analyze import S2IngestAnalyze, _features
 from shorts_forge.stages.s3_select_order import S3SelectOrder, energy_arc_reorder
 from shorts_forge.stages.s4_assemble import S4Assemble
-from shorts_forge.stages.s5_audio import S5Audio, load_library
+from shorts_forge.stages.s5_audio import S5Audio
 from shorts_forge.stages.s6_render import S6Render
 
 
@@ -60,9 +60,18 @@ def test_s3_hero_first_chronological_edl(synthetic_inbox, ascii_root):
         assert e["motion"]["type"] == "pending"          # S4 fills Ken Burns
 
 
-def test_s3_energy_arc_reorder_is_gate_blocked_d5():
-    with pytest.raises(GateBlocked):
-        energy_arc_reorder([])
+def test_s3_energy_arc_reorder_empty_lex_preserves_order():
+    # D5 v1.0 (option 2): owner manual lexicon. Empty/None lex → identity
+    # (chronological order preserved). Topic-driven re-order is [DESIGN] 잔존.
+    items = [("a", 1), ("b", 2), ("c", 3)]
+    assert energy_arc_reorder(items) == items
+    assert energy_arc_reorder(items, lex=None) == items
+    assert energy_arc_reorder(items, lex=frozenset()) == items
+
+
+def test_s3_energy_arc_reorder_with_lex_currently_identity():
+    items = [1, 2, 3]
+    assert energy_arc_reorder(items, lex=frozenset({"운동"})) == [1, 2, 3]
 
 
 def test_s4_slides_materialized_vertical(synthetic_inbox, ascii_root):
@@ -78,17 +87,14 @@ def test_s4_slides_materialized_vertical(synthetic_inbox, ascii_root):
     assert (Path(rs.artifacts["S4"]) / "edl.json").exists()
 
 
-def test_s5_silent_null_track_d2_blocked(synthetic_inbox, ascii_root):
+def test_s5_silent_when_no_owner_music(synthetic_inbox, ascii_root):
+    # D2 v1.2 (option 2): empty <sf_root>/music/ → silent_inc1 fallback,
+    # identical to pre-v1.2 behavior (graceful degradation).
     rs = _rs(synthetic_inbox, ascii_root)
     _drive(rs, [S1Normalize(), S2IngestAnalyze(), S3SelectOrder(),
                 S4Assemble(), S5Audio()])
-    assert rs.edl["audio"]["track_ref"] is None          # D2: no library content
+    assert rs.edl["audio"]["track_ref"] is None
     assert rs.edl["audio"]["mode"] == "silent_inc1"
-
-
-def test_s5_load_library_is_gate_blocked_d2():
-    with pytest.raises(GateBlocked):
-        load_library()
 
 
 def test_s6_renders_nonblack_vertical_short(synthetic_inbox, ascii_root):

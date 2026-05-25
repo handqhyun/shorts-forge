@@ -14,10 +14,10 @@ gates.py 미등재가 정상).
 | GATE | 주제 | 분류 | 코드 표현 |
 |---|---|---|---|
 | D1 | 수치 문턱(샷대역·길이·품질) | 잠정 ratchet | `PROVISIONAL_D1_*` 표식·상수 채택 금지 |
-| D2 | 음악 라이브러리 콘텐츠 소싱 | HARD-BLOCKED | `s5.load_library()` @gate_blocked·`music/` 미채움 |
+| D2 | 음악 라이브러리 콘텐츠 소싱 | HARD-BLOCKED → **해소(v1.2 currency 2026-05-25·안 2 소유자 수동 로컬 음악 폴더·PRD §12-D2 정본)** | `s5.load_library()` @gate_blocked 해제·`<sf_root>/music/` 소유자 배치·loader.discover_tracks |
 | D3 | 자동 게시 | HARD-BLOCKED (B3 보류) | `cli.publish()` @gate_blocked·publish verb 부재 |
 | D4 | Phase-0 골든 소유권 | **해소(소유자)** | 코퍼스 *제작*은 별도 병행(Inc1 미포함) |
-| D5 | 트렌드/슬랭 렉시콘 | 잠정 | `s3.energy_arc_reorder()`·`llm.resolve_slang()` @gate_blocked·연대순 폴백 |
+| D5 | 트렌드/슬랭 렉시콘 | 잠정 → **해소(v1.0 currency 2026-05-25·안 2 소유자 수동 로컬 렉시콘·PRD §12-D5 정본)** | `s3.energy_arc_reorder()`·`llm.resolve_slang()` @gate_blocked·연대순 폴백 (별 turn: @gate_blocked 해제 + 렉시콘 로더 신설) |
 | D6 | 서명/배포 채널 | 부분 해제(스파이크 잔존) | OV-sideload 타깃·`msix_channel()` @gate_blocked |
 | D7 | 디바이스 티어 임계 | 잠정 | 보수 기본 티어·`autotier_measure()` @gate_blocked |
 | D8 | Content-ID 오클레임 | 잠정 | `s5.contentid_claim()` placeholder |
@@ -26,9 +26,9 @@ gates.py 미등재가 정상).
 | D11 | unrecoverable-failure taxonomy(X2) | 표면화 | 코드 모듈 없음(§9/OPS-8 부분-상태 복구 미명세) |
 | D12 | 위임-결정자 정합(L2·메타) | 표면화(메타) | 코드 표현 없음 |
 | D13 | 빌드정확성 수용객체(G2) | 표면화 | 하니스는 출력품질만 |
-| D14 | 무드음악 매칭 차원 | 표면화(★제1목적 직격) | s5 휴리스틱만·s7 무드게이트 부재 |
+| D14 | 무드음악 매칭 차원 | 표면화(★제1목적 직격) → **해소(v1.2 currency 2026-05-25·D2와 단일 결정 수렴·매칭 차원='소유자 선택'·코드 명시 매칭 엔진 부재·PRD §12-D14 정본)** | s5 결정론 선택(seed-based)만·매칭 엔진 0·소유자 큐레이션 한정 |
 | D15 | 실사용자 수용루프 | 표면화 | 판정자=소유자/머신만 |
-| D16 | 트렌드 갱신운영·부패수용 | 표면화(D5 보완) | s3·llm 운영축 |
+| D16 | 트렌드 갱신운영·부패수용 | 표면화(D5 보완) → **해소(v1.0 currency 2026-05-25·D5와 단일 결정 수렴·소유자 수동 편집·정상 강등 수용판정·PRD §12-D16 정본)** | s3·llm 운영축 (별 turn: 운영 정책 코드화) |
 | D17 | Claude Code 빌드 인증 연속성 | *해소 형태* 잔존(빌드타임) | `build_decisions`·런타임 gates.py 미등재가 정상 |
 
 ## B. [DESIGN] 결정값 (확정·가역 — workflow §12 위임)

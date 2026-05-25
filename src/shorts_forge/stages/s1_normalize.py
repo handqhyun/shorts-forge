@@ -12,6 +12,7 @@ import json
 
 from ..invariants import encoding
 from ..media import image_ops, probe as probemod
+from ..notes import description_loader
 from ..spine import cache as cachemod
 from ..spine.contracts import StageContract, StageResult
 from ..spine.gates import gate_blocked
@@ -58,8 +59,13 @@ class S1Normalize(StageContract):
         if not inbox.exists():
             return StageResult(False, self.stage_id, detail=f"inbox 부재: {inbox}")
 
+        # PRD §3.1 v1.1: description.txt is an optional prose seed (read by
+        # llm.template_fallback via notes.description_loader), not media —
+        # skip from media scan to avoid noisy isolation logs.
         files = sorted(
-            (p for p in inbox.iterdir() if p.is_file()),
+            (p for p in inbox.iterdir()
+             if p.is_file()
+             and p.name.lower() != description_loader.DESCRIPTION_FILENAME),
             key=lambda p: encoding.nfc(p.name),  # 결정론 순서(NFC)
         )
         kept_phashes: list[int] = []

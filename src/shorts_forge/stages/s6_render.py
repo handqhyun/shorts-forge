@@ -52,8 +52,14 @@ class S6Render(StageContract):
         for e in tl:
             args += ["-loop", "1", "-t", f"{e['out']:.3f}",
                      "-i", e["slide_src"]]
-        args += ["-f", "lavfi", "-t", f"{total:.3f}",
-                 "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"]
+        # PRD §12-D2 v1.2 (option 2): owner-supplied music track if present,
+        # else lavfi anullsrc (silent — pre-v1.2 behavior preserved).
+        track_ref = rs.edl["audio"].get("track_ref")
+        if track_ref:
+            args += ["-i", track_ref]
+        else:
+            args += ["-f", "lavfi", "-t", f"{total:.3f}",
+                     "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"]
 
         # 엔트리별 zoompan(미묘 Ken Burns·결정론) → concat
         fc = []
@@ -72,9 +78,24 @@ class S6Render(StageContract):
         fc.append(f"{concat_in}concat=n={len(tl)}:v=1:a=0[vout]")
         audio_idx = len(tl)
 
+        # D2 v1.2: owner-track audio path appends a length-matching +
+        # 1-pass loudnorm chain (apad → atrim → loudnorm). Silent path
+        # maps lavfi anullsrc directly (no chain). 2-pass loudnorm
+        # (full -14 LUFS PRD C-OUT precision) is `[DESIGN]` 잔존.
+        if track_ref:
+            fc.append(
+                f"[{audio_idx}:a]aresample=48000,"
+                f"aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                f"apad,atrim=0:{total:.3f},asetpts=PTS-STARTPTS,"
+                f"loudnorm=I=-14:LRA=11:TP=-1:print_format=none[aout]"
+            )
+            audio_map = "[aout]"
+        else:
+            audio_map = f"{audio_idx}:a"
+
         args += [
             "-filter_complex", ";".join(fc),
-            "-map", "[vout]", "-map", f"{audio_idx}:a",
+            "-map", "[vout]", "-map", audio_map,
             "-t", f"{total:.3f}",
             *ffmpeg_cli.x264_baseline_args(),
             str(out),

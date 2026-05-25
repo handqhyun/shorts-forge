@@ -1,7 +1,8 @@
-"""S3 SELECT/ORDER — 결정론 휴리스틱(연대순 척추 + 히어로 앵커). D5 차단.
+"""S3 SELECT/ORDER — 결정론 휴리스틱(연대순 척추 + 히어로 앵커).
 
 추적: PRD §8 C-THUMB·§7·§8 D-차원 입력상대 · workflow.md §2 S3 · 【AX-CRAFT】【AX-INPUT】 [F §3.9/§3.10]
-[GATE:D5] 에너지아크/트렌드-슬랭 미결정 → 잠정=연대순-only·DURABLE-craft.
+[GATE:D5] v1.0 currency 2026-05-25 (option 2): 소유자 수동 로컬 렉시콘.
+빈 lex = 연대순 폴백 (현 동작 동형). lex 채워짐 = 추후 [DESIGN] 재배열 확장.
 선별=품질·중복·입력바닥 규칙(고전, 모델 0). 첫 프레임=가용 최강(연대순-첫 아님,
 C-THUMB). 샷수 대역·페이스 적용. 수치 문턱은 [GATE:D1] 잠정.
 """
@@ -9,12 +10,11 @@ from __future__ import annotations
 
 from ..spine import edl as edlmod
 from ..spine.contracts import StageContract, StageResult
-from ..spine.gates import gate_blocked
 from ..spine.runstate import RunState
 
 TRACE = {
-    "prd": "§8 C-THUMB",
-    "workflow": "§2 S3",
+    "prd": "§8 C-THUMB·§12-D5 v1.0",
+    "workflow": "§2 S3·§10 D5 v1.0",
     "ax": ["AX-CRAFT", "AX-INPUT"],
     "f": ["§3.9", "§3.10"],
     "gate": ["D5", "D1"],
@@ -27,9 +27,15 @@ PER_SHOT_MIN_S, PER_SHOT_MAX_S = 1.0, 4.0   # ~2–4초/컷, 정지 >5초 금지
 TARGET_TOTAL_S = 55.0
 
 
-@gate_blocked("D5")
-def energy_arc_reorder(assets):
-    """[GATE:D5] 음악결속 에너지아크/트렌드 재배열 = 미결정. 잠정=연대순 우선."""
+def energy_arc_reorder(assets, lex=None):
+    """[GATE:D5] v1.0 currency 2026-05-25 (option 2): owner manual lexicon.
+
+    Empty / None lex → identity (preserve chronological order — current
+    baseline behavior). Non-empty lex → identity for now; topic-driven
+    re-order is `[DESIGN]` 잔존 (PRD §12-D5 v1.0). Asset-side keyword meta
+    is not yet wired through S2 — schema extension is a separate turn.
+    """
+    return list(assets)
 
 
 class S3SelectOrder(StageContract):

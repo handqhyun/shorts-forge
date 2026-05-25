@@ -105,6 +105,13 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v0.7 (2026-05-25)** — Magenta **ImprovRNN** (chord-conditioned melody·
+  `chord_pitches_improv` 체크포인트·~5-10MB 추가) 도입. v0.6 멜로디의 가장
+  큰 약점(우리 화성과 무관한 random sample)을 직접 해소 — 우리 lofi/ambient/
+  acoustic 진행을 chord symbol로 입력해서 *chord-conditioned* 멜로디 생성.
+  5단계 fallback(T1+: ImprovRNN+피아노·T1: MusicVAE+피아노·T2: procedural+
+  피아노·T3: v0.5·silent). 어떤 단계 실패해도 자동 폴백. INVARIANT 'no upload'
+  보존(CDN=정적 자원만·사용자 콘텐츠 송신 0). **모바일 첫 로드 ~40-90초**.
 - **v0.6 (2026-05-25)** — Salamander Grand Piano sampler + Magenta MusicVAE
   도입. BGM 토글 ON + [영상 만들기] 첫 클릭 시 lazy load (~3-5MB 피아노
   샘플·~10-20MB Magenta 모델·1회). 4단계 폴백 체인(T1: ML 멜로디+진짜

@@ -103,6 +103,29 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v0.7 결정 (2026-05-25)
+
+- **D-melody-chord-conditioned**: 사용자 "멜로디 더 좋게·인터넷 음악 학습"
+  요청 → 결정표면 4안 중 **안 1 (더 큰 사전 학습된 모델 도입)** 채택.
+  Magenta `MusicRNN` + `chord_pitches_improv` 체크포인트 도입. v0.6
+  MusicVAE의 가장 큰 약점(우리 화성과 무관한 random sample)을 직접 해소 —
+  우리 lofi/ambient/acoustic 화성을 chord symbol로 입력하면 ImprovRNN이
+  *chord-conditioned* 멜로디 생성. 결과 멜로디가 화성에 정합.
+- **D-chord-mapping**: 우리 procedural progression → ImprovRNN chord
+  symbol 매핑 hardcode (lofi=Cmaj7-Am7-Dm7-G7..., ambient=C-Am-F-G,
+  acoustic=C-G-Am-F-G). barsNeeded × 1 chord 반복.
+- **D-fallback-extended**: 4단계 → 5단계 fallback. T1+(ImprovRNN+piano)·
+  T1(MusicVAE+piano)·T2(procedural+piano)·T3(v0.5 FMSynth)·silent.
+  ImprovRNN 실패해도 MusicVAE 폴백·MusicVAE 실패해도 procedural 폴백.
+- **D-cdn-policy 불변**: INVARIANT 'no upload' 보존 *유지*. Magenta
+  ImprovRNN 체크포인트도 Google magentadata bucket (정적 자원·공개).
+  사용자 콘텐츠 송신 0 자가검증 유지.
+- **모바일 비용 증가**: 첫 로드 ~40-90초 (ImprovRNN ~5-10MB 추가). 견고한
+  fallback으로 위험 격리.
+- **잔존 (별 turn)**: Magenta MusicTransformer(더 큰 모델)·MusicGen-small
+  (transformers.js·~300MB·PC only)·Performance RNN(dynamics·timing)·다중
+  instrument sample pack·SaaS API 분기(별 신규 프로젝트).
+
 ### v0.6 결정 (2026-05-25)
 
 - **D-piano-sampler**: 사용자 명시 "1번(Salamander) + 2번(Magenta) 모두 도입"
@@ -164,6 +187,11 @@
 
 ## 변경 노트
 
+- **v0.7 (2026-05-25)** — Magenta ImprovRNN(`chord_pitches_improv` 체크포인트·
+  ~5-10MB 추가) 도입. chord-conditioned 멜로디 생성으로 v0.6의 무관한
+  random sample 문제 해소. 5단계 fallback (T1+/T1/T2/T3/silent). 우리
+  lofi/ambient/acoustic 화성을 chord symbol로 매핑하여 ImprovRNN에 입력 →
+  화성에 정합하는 멜로디. INVARIANT 보존. 모바일 첫 로드 ~40-90초.
 - **v0.6 (2026-05-25)** — Salamander Grand Piano sampler(9음·~3-5MB)+Magenta
   MusicVAE(`mel_2bar_small`·~10-20MB) lazy load + 4단계 fallback chain
   (T1/T2/T3). 메타 source에 tier 명시. INVARIANT 보존(CDN=정적 자원만·사용자

@@ -168,7 +168,7 @@
   </details>
 
   <details>
-    <summary>🎶 자동 BGM이란 무엇인가요? (v0.6 — 3단계 품질 폴백)</summary>
+    <summary>🎶 자동 BGM이란 무엇인가요? (v0.7 — 4단계 품질 폴백)</summary>
     <div style="font-size:0.9rem;color:inherit;line-height:1.6">
       <p>
         BGM 토글을 켜고 [영상 만들기]를 첫 번째로 누르면 다음을 1회 다운로드
@@ -177,26 +177,34 @@
       <ul>
         <li><strong>Salamander Grand Piano 샘플</strong>(~3-5MB·CC0 라이선스·
             Tone.js GitHub Pages 호스팅) — 진짜 피아노 음색</li>
-        <li><strong>Magenta MusicVAE</strong>(~10-20MB·TensorFlow.js 포함·jsDelivr
-            CDN + Google magentadata storage) — ML 멜로디 생성</li>
+        <li><strong>Magenta MusicVAE + ImprovRNN</strong>(~15-25MB·TensorFlow.js 포함·
+            jsDelivr CDN + Google magentadata storage) — ML 멜로디 생성
+            (chord-conditioned)</li>
       </ul>
       <p>
-        둘 다 로드되면 <strong>T1 (최고)</strong>: Magenta ML 멜로디 + 진짜
-        피아노 + procedural 베이스/드럼. 피아노만 로드되면 <strong>T2</strong>:
-        procedural 진행 + 진짜 피아노. 둘 다 실패하면 <strong>T3 (v0.5)</strong>:
-        FMSynth 폴백. 어떤 경우에도 BGM은 *반드시* 나옵니다.
+        품질 4단계 자동 선택:
+      </p>
+      <ul>
+        <li><strong>T1+ (최고)</strong>: ImprovRNN chord-conditioned 멜로디 +
+            진짜 피아노 + procedural 화성/베이스/드럼 — 멜로디가 *우리 화성에
+            정합*하게 생성됨 (v0.7 신규)</li>
+        <li><strong>T1</strong>: MusicVAE 멜로디 + 진짜 피아노 (v0.6 동형)</li>
+        <li><strong>T2</strong>: procedural 진행 + 진짜 피아노 (피아노만 로드 시)</li>
+        <li><strong>T3</strong>: v0.5 FMSynth 폴백 (둘 다 실패 시)</li>
+      </ul>
+      <p>
+        어떤 경우에도 BGM은 *반드시* 나옵니다. 본인 권리 있는 음악 파일을
+        ②에 선택하면 그게 여전히 우선 사용됩니다.
       </p>
       <p>
-        <strong>한계</strong>: 여전히 가사·보컬은 없습니다(악기 + 멜로디만).
-        그러나 v0.5 대비 *피아노 음색의 사실감*과 *멜로디 line의 음악성*은
-        상당히 향상되었습니다. 본인 권리 있는 음악 파일을 ②에 선택하면 그게
-        여전히 우선 사용됩니다.
+        <strong>한계</strong>: 가사·보컬·실 악기 앙상블은 여전히 없습니다.
+        브라우저 안 100% 로컬·합법 범위의 한계입니다.
       </p>
       <p>
-        <strong>모바일 첫 로드</strong>: ~30-60초 가능(데이터·CPU 부담). 한 번
-        받으면 같은 브라우저에서 다음부터는 캐시. INVARIANT 'no upload' 보존:
-        CDN은 정적 자원(코드·샘플·모델 가중치)만 전송하며 사용자 콘텐츠는
-        절대 송신하지 않습니다(자동 fetch 토큰 0건 자가검증).
+        <strong>모바일 첫 로드</strong>: ~40-90초 가능(v0.7 ImprovRNN 추가
+        분). 한 번 받으면 같은 브라우저에서 다음부터는 캐시. INVARIANT
+        'no upload' 보존: CDN은 정적 자원(코드·샘플·모델 가중치)만 전송하며
+        사용자 콘텐츠는 절대 송신하지 않습니다(자동 fetch 토큰 0건 자가검증).
       </p>
     </div>
   </details>
@@ -406,11 +414,28 @@
       return mvae;
     }
 
+    async function loadImprovRNN() {
+      // v0.7: chord-conditioned melody RNN. Requires the same `mm` global
+      // that loadMagenta already provisioned, so this MUST run after Magenta
+      // loaded (or in the same load step). MusicRNN has no separate bundle —
+      // it ships inside @magenta/music.
+      if (typeof mm === 'undefined' || !mm.MusicRNN) {
+        throw new Error('mm.MusicRNN unavailable (Magenta bundle missing)');
+      }
+      const ckpt = 'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv';
+      const rnn = new mm.MusicRNN(ckpt);
+      await rnn.initialize();
+      return rnn;
+    }
+
     async function loadEnhancements(progressCb) {
       if (_enhancementCache) return _enhancementCache;
-      const out = { piano: null, mvae: null, errors: [] };
+      const out = { piano: null, mvae: null, improv: null, errors: [] };
 
-      // Run both loads in parallel — one failing does not block the other.
+      // Salamander and Magenta(MusicVAE) loads run in parallel. ImprovRNN
+      // depends on Magenta's `mm` global, so it chains after MusicVAE
+      // (still failure-isolated — ImprovRNN failure does not invalidate
+      // MusicVAE, and vice versa).
       const tasks = [
         (async () => {
           try {
@@ -419,22 +444,76 @@
             progressCb?.('🎹 피아노 샘플 OK');
           } catch (e) {
             out.errors.push('Salamander: ' + (e?.message || e));
-            progressCb?.(`⚠️ 피아노 샘플 실패 — FMSynth 폴백. (${e?.message || e})`);
+            progressCb?.(`⚠️ 피아노 샘플 실패 — FMSynth 폴백.`);
           }
         })(),
         (async () => {
           try {
             progressCb?.('🤖 Magenta MusicVAE 로딩 중… (~10-20MB·1회)');
             out.mvae = await loadMagenta();
-            progressCb?.('🤖 Magenta OK');
+            progressCb?.('🤖 MusicVAE OK · ImprovRNN 시도…');
+            // v0.7: chained chord-conditioned model. Failure here drops the
+            // pipeline back to MusicVAE (v0.6 behavior) instead of breaking.
+            try {
+              out.improv = await loadImprovRNN();
+              progressCb?.('🤖 ImprovRNN OK (chord-conditioned melody)');
+            } catch (e) {
+              out.errors.push('ImprovRNN: ' + (e?.message || e));
+              progressCb?.(`⚠️ ImprovRNN 실패 — MusicVAE로 폴백.`);
+            }
           } catch (e) {
             out.errors.push('Magenta: ' + (e?.message || e));
-            progressCb?.(`⚠️ Magenta 실패 — procedural 멜로디 폴백. (${e?.message || e})`);
+            progressCb?.(`⚠️ Magenta 실패 — procedural 멜로디 폴백.`);
           }
         })(),
       ];
       await Promise.all(tasks);
       _enhancementCache = out;
+      return out;
+    }
+
+    // v0.7: chord-symbol mapping per mood. ImprovRNN takes a list of chord
+    // symbols (one per quarter note step) and generates a melody that
+    // explicitly fits those changes.
+    const CHORD_SYMBOLS = {
+      lofi:     ['Cmaj7','Am7','Dm7','G7','Cmaj7','Am7','Fmaj7','G7'],
+      ambient:  ['C','Am','F','G','C','Am','F','G'],
+      acoustic: ['C','G','Am','F','C','G','F','G'],
+    };
+
+    async function improvMelody(rnn, mood, barsNeeded, seed) {
+      // Build a seed NoteSequence — one anchor note in the chord's range
+      // gives ImprovRNN somewhere to start without dictating contour.
+      const NS = mm.sequences || { quantizeNoteSequence: null };
+      const seedSeq = {
+        notes: [
+          { pitch: 60, quantizedStartStep: 0, quantizedEndStep: 1 },  // middle C
+        ],
+        quantizationInfo: { stepsPerQuarter: 4 },
+        totalQuantizedSteps: 1,
+        tempos: [{ time: 0, qpm: 120 }],
+      };
+      const chordSyms = CHORD_SYMBOLS[mood] || CHORD_SYMBOLS.ambient;
+      // Repeat chord sequence to cover all bars.
+      const chordList = [];
+      for (let i = 0; i < barsNeeded; i++) {
+        chordList.push(chordSyms[i % chordSyms.length]);
+      }
+      // 16 steps per bar (4 quarters × 4 steps), continue for barsNeeded bars
+      const steps = 16 * barsNeeded;
+      const cont = await rnn.continueSequence(
+        seedSeq, steps, /*temperature*/ 1.0, chordList
+      );
+      if (!cont?.notes) return null;
+      // Convert quantized steps → seconds (qpm=120, 4 steps/quarter →
+      // 1 step = 0.125s)
+      const out = [];
+      const secPerStep = 0.125;
+      for (const n of cont.notes) {
+        const start = (n.quantizedStartStep ?? 0) * secPerStep;
+        const end = (n.quantizedEndStep ?? (n.quantizedStartStep + 1)) * secPerStep;
+        out.push({ pitch: n.pitch, start, end });
+      }
       return out;
     }
 
@@ -658,16 +737,25 @@
 
       const startAt = Tone.now() + 0.15;
 
-      // ── optional Magenta melody overlay (T1 tier) ────────────────────────
-      // If MusicVAE loaded, sample a melody covering `bars` bars and overlay
-      // it on the piano. Procedural chords/bass/drums still run for
-      // harmonic grounding.
-      let melodyNotes = null;
-      if (enh.mvae && leadIsSampler) {
+      // ── optional ML melody overlay (T1+ / T1 tier) ───────────────────────
+      // Chain: ImprovRNN (chord-conditioned, v0.7) → MusicVAE (v0.6) →
+      // procedural arpeggio. Each tier is attempted only if its model loaded
+      // and the previous tier produced no melody.
+      let melodyNotes = null, melodyTier = null;
+      if (enh.improv && leadIsSampler) {
+        try {
+          melodyNotes = await improvMelody(enh.improv, mood, bars, seed);
+          if (melodyNotes?.length) melodyTier = 'improv';
+        } catch (e) {
+          melodyNotes = null;
+        }
+      }
+      if (!melodyNotes && enh.mvae && leadIsSampler) {
         try {
           melodyNotes = await magentaMelody(enh.mvae, bars, seed);
+          if (melodyNotes?.length) melodyTier = 'mvae';
         } catch (e) {
-          melodyNotes = null;   // fall back to procedural arpeggio
+          melodyNotes = null;
         }
       }
 
@@ -763,9 +851,10 @@
               rim?.dispose?.(); verb.dispose?.(); comp.dispose?.();
               eq.dispose?.(); masterOut.dispose?.(); } catch {}
       };
-      const tier = (enh.piano && enh.mvae && melodyNotes) ? 'T1'
-                 : enh.piano                              ? 'T2'
-                                                          : 'T3';
+      const tier = (enh.piano && melodyNotes && melodyTier === 'improv') ? 'T1+'
+                 : (enh.piano && melodyNotes && melodyTier === 'mvae')   ? 'T1'
+                 : enh.piano                                              ? 'T2'
+                                                                          : 'T3';
       return { stream: dest.stream, stop, mood, tier };
     }
 

@@ -20,78 +20,156 @@
       border: 1px solid #bbb; border-radius: 6px; background: inherit;
       color: inherit; font: inherit;
     }
-    textarea { min-height: 4rem; resize: vertical; }
+    textarea { min-height: 4rem; resize: vertical; font-family: inherit; }
+    textarea.mono { font-family: ui-monospace, monospace; min-height: 6rem; }
     button { padding: 0.7rem 1.2rem; border-radius: 8px; border: 0;
              background: #2e6fdb; color: white; font-weight: 600;
              cursor: pointer; font-size: 1rem; }
     button:disabled { background: #888; cursor: not-allowed; }
+    button.secondary { background: #555; }
     #status { margin: 1rem 0; font-family: ui-monospace, monospace;
               white-space: pre-wrap; min-height: 1.5rem; }
     video { width: 100%; max-height: 60vh; border-radius: 8px;
             background: black; margin-top: 1rem; }
-    a.download { display: inline-block; margin-top: 0.6rem; padding: 0.5rem 1rem;
-                 background: #21a55a; color: white; border-radius: 6px;
-                 text-decoration: none; font-weight: 600; }
+    a.download { display: inline-block; margin-top: 0.6rem; margin-right: 0.4rem;
+                 padding: 0.5rem 1rem; background: #21a55a; color: white;
+                 border-radius: 6px; text-decoration: none; font-weight: 600; }
+    a.download.meta { background: #6a4fb8; }
     .invariant { font-size: 0.85rem; color: #777;
                  border-left: 3px solid #21a55a; padding-left: 0.8rem;
                  margin-top: 0.5rem; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .hint { font-size: 0.8rem; color: #888; margin-top: 0.3rem; }
+    details { margin-top: 0.5rem; }
+    summary { cursor: pointer; font-size: 0.9rem; color: #666; }
   </style>
 </head>
 <body>
   <h1>shorts-forge-browser</h1>
   <p class="sub">
-    사진 여러 장을 골라 9:16 세로 슬라이드 영상(webm)을 만든다.
-    <strong>모든 처리는 이 브라우저 안에서만</strong> 일어난다 —
-    사진은 어떤 서버로도 업로드되지 않는다.
+    사진 여러 장과 (옵션) 음악·메모·트렌디 키워드를 입력하면 9:16 세로 영상을
+    만든다. <strong>모든 처리는 이 브라우저 안에서만</strong> 일어난다 — 사진·
+    음악·텍스트는 어떤 서버로도 업로드되지 않는다.
   </p>
 
   <div class="card">
-    <label for="photos">1) 사진 선택 (여러 장)</label>
+    <label for="photos">① 사진 (여러 장)</label>
     <input id="photos" type="file" accept="image/*" multiple />
   </div>
 
   <div class="card">
-    <label for="memo">2) 영상 내용 메모 (옵션 · 다운로드 파일명에 사용)</label>
+    <label for="audio">② 음악 (옵션) — 본인 권리 있는 파일만</label>
+    <input id="audio" type="file" accept="audio/*" />
+    <div class="hint">.mp3 / .m4a / .wav / .ogg 등. 영상보다 짧으면 무음 패딩,
+                      길면 영상 길이로 잘림. <strong>라이선스 책임=사용자.</strong></div>
+  </div>
+
+  <div class="card">
+    <label for="memo">③ 영상 내용 메모 (옵션) — 메타와 파일명에 반영</label>
     <textarea id="memo" placeholder="예: 한강 자전거 라이딩 모음"></textarea>
+  </div>
+
+  <div class="card">
+    <label for="lex">④ 트렌디 키워드 (옵션) — 한 줄에 한 단어</label>
+    <textarea id="lex" class="mono"
+              placeholder="# 주석은 '#'으로 시작&#10;운동&#10;다이어트&#10;브이로그&#10;챌린지"></textarea>
+    <div class="hint">자동으로 메타데이터 해시태그(`#운동` 등)에 추가됨 · 기본 4태그
+                      + 입력 키워드, 최대 15개. 이 입력은 이 브라우저 안에만 저장됨
+                      (LocalStorage).</div>
   </div>
 
   <div class="card">
     <div class="row">
       <div>
-        <label for="seconds">3) 컷당 초 (1.0–6.0)</label>
+        <label for="seconds">⑤ 컷당 초 (1.0–6.0)</label>
         <input id="seconds" type="number" value="3" min="1" max="6" step="0.5" />
       </div>
       <div>
-        <label for="fps">4) 프레임률</label>
+        <label for="fps">⑥ 프레임률</label>
         <input id="fps" type="number" value="30" min="15" max="60" step="1" />
       </div>
     </div>
   </div>
 
   <button id="run">▶ 영상 만들기</button>
+  <button id="clearLex" class="secondary" type="button"
+          style="margin-left:0.5rem">키워드 저장 지우기</button>
   <div id="status">대기 중. 사진을 고르고 [영상 만들기]를 누르세요.</div>
   <video id="preview" controls playsinline></video>
   <div id="downloadWrap"></div>
 
+  <details>
+    <summary>왜 mp4 / webm 둘 다 나올 수 있나요?</summary>
+    <p style="font-size:0.9rem;color:#666">
+      브라우저 네이티브 인코더가 mp4(H.264+AAC)를 지원하면 mp4로, 아니면
+      webm(VP9/VP8)으로 저장합니다 — ffmpeg.wasm·외부 라이브러리 의존 0 원칙
+      때문입니다. 일반적으로 Safari·최신 Chrome은 mp4, Firefox·구버전 Chrome은
+      webm입니다. 둘 다 YouTube/대부분 SNS에 업로드 가능합니다.
+    </p>
+  </details>
+
   <p class="invariant">
-    🔒 브라우저 외 전송 0 · 서버 0 · 텔레메트리 0. 본 페이지는 정적 HTML 한
-    파일이며 네트워크는 페이지 로드(이 파일 자체)에만 사용된다. 사진/영상
-    바이트는 어디로도 나가지 않는다. (부모 시스템 shorts-forge INVARIANT #1
-    재해석: "로컬 PC 전용" → "브라우저 외 전송 0".)
+    🔒 브라우저 외 전송 0 · 서버 0 · 텔레메트리 0. 사진/음악/텍스트 바이트는
+    어디로도 나가지 않습니다. 트렌디 키워드는 본 브라우저의 LocalStorage에만
+    저장(다른 사용자/서버 미공유). 라이선스 책임은 사용자.
   </p>
 
   <script type="module">
     const W = 1080, H = 1920;
+    const LEX_KEY = 'shorts_forge_browser_lex_v1';
+    const MAX_HASHTAGS = 15;
+    const BASE_TAGS = ['#쇼츠', '#shorts', '#일상', '#영상기록'];
+
     const statusEl = document.getElementById('status');
     const preview  = document.getElementById('preview');
     const dlWrap   = document.getElementById('downloadWrap');
     const runBtn   = document.getElementById('run');
+    const lexEl    = document.getElementById('lex');
+    const clearLexBtn = document.getElementById('clearLex');
 
     const setStatus = (s) => { statusEl.textContent = s; };
 
+    // ── LocalStorage lex persistence (in-browser only) ─────────────────────
+    try {
+      const saved = localStorage.getItem(LEX_KEY);
+      if (saved) lexEl.value = saved;
+    } catch {}
+    lexEl.addEventListener('input', () => {
+      try { localStorage.setItem(LEX_KEY, lexEl.value); } catch {}
+    });
+    clearLexBtn.addEventListener('click', () => {
+      lexEl.value = '';
+      try { localStorage.removeItem(LEX_KEY); } catch {}
+      setStatus('키워드 저장 지움.');
+    });
+
+    // ── helpers ────────────────────────────────────────────────────────────
     const sanitize = (s) =>
-      (s || '').trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 60) || 'shorts';
+      (s || '').trim().replace(/[\\/:*?"<>|\n\r\t]/g, ' ').slice(0, 60) || 'shorts';
+
+    function parseLex(text) {
+      const out = new Set();
+      for (const raw of (text || '').split(/\r?\n/)) {
+        const s = raw.trim();
+        if (!s || s.startsWith('#')) continue;          // # = comment
+        const nfc = s.normalize('NFC').slice(0, 40);
+        if (nfc) out.add(nfc);
+        if (out.size >= 200) break;
+      }
+      return [...out].sort();
+    }
+
+    function buildHashtags(lexKws) {
+      const seen = new Set();
+      const tags = [];
+      for (const t of [...BASE_TAGS, ...lexKws.map((k) => '#' + k)]) {
+        if (seen.has(t)) continue;
+        seen.add(t);
+        tags.push(t);
+        if (tags.length >= MAX_HASHTAGS) break;
+      }
+      return tags;
+    }
 
     async function loadImage(file) {
       const url = URL.createObjectURL(file);
@@ -103,7 +181,6 @@
         });
         return img;
       } finally {
-        // Revoke after draw — keep URL alive briefly for the decode.
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }
     }
@@ -115,7 +192,6 @@
       const dR = W / H;
       let sx, sy, sw, sh;
       if (sR > dR) {
-        // image wider than 9:16 → crop width
         sh = img.height; sw = sh * dR;
         sx = (img.width - sw) / 2; sy = 0;
       } else {
@@ -125,98 +201,180 @@
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
     }
 
+    // Pick best supported container. mp4 (H.264 + AAC) first → universal
+    // compatibility. Falls back to webm/VP9 → webm/VP8 → bare webm.
     function pickMime() {
       const candidates = [
+        'video/mp4;codecs=avc1.42E01F,mp4a.40.2',  // H.264 baseline + AAC-LC
+        'video/mp4;codecs=avc1.640028,mp4a.40.2',  // H.264 high + AAC-LC
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
         'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8,opus',
         'video/webm;codecs=vp8',
         'video/webm',
       ];
       for (const m of candidates) {
-        if (MediaRecorder.isTypeSupported(m)) return m;
+        try {
+          if (MediaRecorder.isTypeSupported(m)) return m;
+        } catch {}
       }
       return '';
     }
 
+    function extFor(mime) {
+      return mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+    }
+
+    // ── owner audio (option 2 mirror of parent D2) ─────────────────────────
+    // Decode the audio file via Web Audio, then build a MediaStream from a
+    // MediaStreamDestination so it can be added as a track on the video
+    // MediaRecorder. Looped via per-cut scheduling: total = N * perCut.
+    async function makeAudioStream(file, totalSec) {
+      const arr = await file.arrayBuffer();
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AC({ sampleRate: 48000 });
+      const buf = await ctx.decodeAudioData(arr.slice(0));
+      const dest = ctx.createMediaStreamDestination();
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      // If audio is shorter than total video, loop. If longer, atrim-equivalent
+      // via stop().
+      src.loop = buf.duration < totalSec;
+      const gain = ctx.createGain();
+      gain.gain.value = 1.0;       // 1-pass loudnorm approximation = identity
+      src.connect(gain).connect(dest);
+      src.start(0);
+      src.stop(ctx.currentTime + totalSec + 0.1);
+      return { stream: dest.stream, ctx };
+    }
+
+    // ── main render ────────────────────────────────────────────────────────
     async function render() {
       runBtn.disabled = true;
       dlWrap.innerHTML = '';
       preview.removeAttribute('src');
 
-      const files = [...document.getElementById('photos').files];
-      if (!files.length) {
+      const photos = [...document.getElementById('photos').files];
+      if (!photos.length) {
         setStatus('⚠️ 사진을 한 장 이상 골라 주세요.');
         runBtn.disabled = false; return;
       }
       const perCut = parseFloat(document.getElementById('seconds').value) || 3;
       const fps    = parseInt(document.getElementById('fps').value, 10) || 30;
-      const memo   = document.getElementById('memo').value;
+      const memo   = (document.getElementById('memo').value || '').trim();
+      const lexKws = parseLex(lexEl.value);
+      const audioFile = document.getElementById('audio').files[0] || null;
 
-      setStatus(`사진 ${files.length}장 디코드 중…`);
+      setStatus(`사진 ${photos.length}장 디코드 중…`);
       const images = [];
-      for (let i = 0; i < files.length; i++) {
-        try {
-          images.push(await loadImage(files[i]));
-        } catch {
-          setStatus(`⚠️ ${files[i].name} 디코드 실패 — 건너뜀.`);
-        }
+      for (let i = 0; i < photos.length; i++) {
+        try { images.push(await loadImage(photos[i])); }
+        catch { setStatus(`⚠️ ${photos[i].name} 디코드 실패 — 건너뜀.`); }
       }
       if (!images.length) {
         setStatus('⚠️ 디코드 가능한 사진이 0장입니다.');
         runBtn.disabled = false; return;
       }
 
+      const total = images.length * perCut;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
 
       const mime = pickMime();
       if (!mime) {
-        setStatus('⚠️ 이 브라우저는 webm 녹화를 지원하지 않습니다 (Chrome/Edge/Firefox 권장).');
+        setStatus('⚠️ 이 브라우저는 MediaRecorder 비디오 인코딩을 지원하지 않습니다.');
         runBtn.disabled = false; return;
       }
+      const ext = extFor(mime);
 
-      const stream = canvas.captureStream(fps);
+      const videoStream = canvas.captureStream(fps);
+      // Combine: video tracks from canvas + (optional) audio track from Web Audio.
+      let audioCtx = null;
+      const combinedStream = new MediaStream(videoStream.getVideoTracks());
+      if (audioFile) {
+        try {
+          setStatus(`음악 디코드 중… (${audioFile.name})`);
+          const { stream: aStream, ctx: aCtx } = await makeAudioStream(audioFile, total);
+          audioCtx = aCtx;
+          for (const t of aStream.getAudioTracks()) combinedStream.addTrack(t);
+        } catch (e) {
+          setStatus(`⚠️ 음악 디코드 실패: ${e?.message || e}. 무음으로 진행합니다.`);
+        }
+      }
+
       const chunks = [];
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 });
+      const rec = new MediaRecorder(combinedStream, {
+        mimeType: mime, videoBitsPerSecond: 6_000_000,
+      });
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-
       const done = new Promise((res) => { rec.onstop = () => res(); });
 
-      drawCoverCrop(ctx, images[0]);   // first frame before start (recorder needs a frame)
+      drawCoverCrop(ctx, images[0]);
       rec.start(250);
       const t0 = performance.now();
-      const total = images.length * perCut;
 
       for (let i = 0; i < images.length; i++) {
         drawCoverCrop(ctx, images[i]);
-        const elapsedSec = () => (performance.now() - t0) / 1000;
         const target = (i + 1) * perCut;
-        // hold the frame on canvas until target time
-        while (elapsedSec() < target) {
+        while ((performance.now() - t0) / 1000 < target) {
           await new Promise((r) => setTimeout(r, 30));
-          // re-draw to keep the canvas stream pumping (some browsers
-          // require a paint to emit a frame)
           drawCoverCrop(ctx, images[i]);
-          setStatus(`녹화 중… ${elapsedSec().toFixed(1)}s / ${total.toFixed(1)}s · 컷 ${i + 1}/${images.length}`);
+          const e = ((performance.now() - t0) / 1000);
+          setStatus(`녹화 중… ${e.toFixed(1)}s / ${total.toFixed(1)}s · 컷 ${i + 1}/${images.length}` +
+                    (audioFile ? ` · 🎵 ${audioFile.name}` : ' · 🔇 무음'));
         }
       }
       rec.stop();
       await done;
+      try { audioCtx?.close(); } catch {}
 
       const blob = new Blob(chunks, { type: mime });
-      const url = URL.createObjectURL(blob);
-      preview.src = url;
+      const videoUrl = URL.createObjectURL(blob);
+      preview.src = videoUrl;
+
+      // ── metadata JSON (parallel to parent draft_metadata) ────────────────
+      const hashtags = buildHashtags(lexKws);
+      const meta = {
+        title: memo ? memo.slice(0, 90) : '오늘의 기록 | 사진과 영상으로 만든 쇼츠',
+        description: memo
+          ? `${memo}\n\n(자동 정보: 약 ${Math.round(total)}초·총 ${images.length}개 컷.)`
+          : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷.`,
+        hashtags,
+        ai_disclosure: false,
+        source: `shorts-forge-browser v0.2 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioFile ? 'owner' : 'silent'})`,
+        lex_size: lexKws.length,
+        description_seed_used: !!memo,
+        audio_source: audioFile ? audioFile.name : null,
+        duration_sec: Math.round(total),
+        cuts: images.length,
+        container_mime: mime,
+        generated_at: new Date().toISOString(),
+      };
+      const metaBlob = new Blob([JSON.stringify(meta, null, 2)],
+                                { type: 'application/json' });
+      const metaUrl = URL.createObjectURL(metaBlob);
 
       const base = sanitize(memo);
       const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${base}_${ts}.webm`;
-      a.className = 'download';
-      a.textContent = `⬇ 다운로드: ${a.download} (${(blob.size / 1024 / 1024).toFixed(1)} MB)`;
-      dlWrap.appendChild(a);
+      const stem = `${base}_${ts}`;
 
-      setStatus(`✅ 완료. ${images.length}장 · ${total.toFixed(1)}초 · ${mime}`);
+      const aVid = document.createElement('a');
+      aVid.href = videoUrl; aVid.download = `${stem}.${ext}`;
+      aVid.className = 'download';
+      aVid.textContent = `⬇ 영상: ${aVid.download} (${(blob.size / 1024 / 1024).toFixed(1)} MB)`;
+      dlWrap.appendChild(aVid);
+
+      const aMeta = document.createElement('a');
+      aMeta.href = metaUrl; aMeta.download = `${stem}.metadata.json`;
+      aMeta.className = 'download meta';
+      aMeta.textContent = `⬇ 메타데이터 JSON`;
+      dlWrap.appendChild(aMeta);
+
+      setStatus(`✅ 완료. ${images.length}장 · ${total.toFixed(1)}초 · ${mime}` +
+                ` · 해시태그 ${hashtags.length}개 (lex ${lexKws.length})` +
+                (audioFile ? ` · 🎵 ${audioFile.name}` : ' · 🔇 무음'));
       runBtn.disabled = false;
     }
 

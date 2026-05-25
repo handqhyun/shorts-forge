@@ -105,6 +105,12 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v0.4 (2026-05-25)** — 자동 BGM 생성 추가 (Tone.js procedural·CCM/예배에
+  적합한 무드 3종: Lo-Fi Piano · Ambient Pad · Acoustic Arpeggio). 결정론 화성
+  진행(I-V-vi-IV 변형) · 사용자 음악 파일 없을 때 토글 ON 시 자동 생성. 메타
+  JSON `ai_disclosure=true`로 명시. CDN 의존 1개 (Tone.js) 추가 — 사용자 콘텐츠
+  외부 전송 0 보존(INVARIANT 재해석은 ARCH.md 참조). **한계**: 진짜 프로 음질
+  아님 — "심플 신시사이저 BGM" 수준. CCM 가사·보컬·실 악기 0.
 - **v0.3 (2026-05-25)** — CCM·인스피레이션 합법 무료 음악 출처 카탈로그 6개
   추가 (UI details 박스 + README 부록). 자동 fetch/삽입 0 (브라우저 외 전송
   0 유지·INVARIANT 보존). 부모 정본 0 변경. 코드 의존 0.

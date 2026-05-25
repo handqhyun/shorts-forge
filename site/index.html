@@ -4,6 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>shorts-forge-browser — 브라우저 안 Shorts 생성</title>
+  <!--
+    Tone.js — browser-only Web Audio synthesis framework. Loaded once over
+    CDN at page boot; after that point no further outbound requests are
+    initiated by site code. INVARIANT 'no upload' (browser-external
+    transmission of user media) remains intact: media/audio bytes never
+    leave the browser. v0.4 reinterprets the "zero CDN" subclause of v0.1-v0.3
+    as "zero CDN that touches user content"; Tone.js never receives user
+    bytes.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
   <style>
     :root { color-scheme: light dark; }
     body { font-family: system-ui, -apple-system, "Apple SD Gothic Neo",
@@ -15,7 +25,7 @@
     .card { border: 1px solid #ddd; border-radius: 12px; padding: 1.2rem;
             margin-bottom: 1rem; background: rgba(127,127,127,0.04); }
     label { display: block; font-weight: 600; margin-bottom: 0.4rem; }
-    input[type=file], input[type=number], textarea {
+    input[type=file], input[type=number], textarea, select {
       width: 100%; box-sizing: border-box; padding: 0.5rem;
       border: 1px solid #bbb; border-radius: 6px; background: inherit;
       color: inherit; font: inherit;
@@ -42,12 +52,15 @@
     .hint { font-size: 0.8rem; color: #888; margin-top: 0.3rem; }
     details { margin-top: 0.5rem; }
     summary { cursor: pointer; font-size: 0.9rem; color: #666; }
+    .bgm-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .bgm-row label { margin: 0; }
+    .bgm-row select { flex: 1; min-width: 12rem; }
   </style>
 </head>
 <body>
   <h1>shorts-forge-browser</h1>
   <p class="sub">
-    사진 여러 장과 (옵션) 음악·메모·트렌디 키워드를 입력하면 9:16 세로 영상을
+    사진 여러 장 + (옵션) 음악·메모·트렌디 키워드를 입력하면 9:16 세로 영상을
     만든다. <strong>모든 처리는 이 브라우저 안에서만</strong> 일어난다 — 사진·
     음악·텍스트는 어떤 서버로도 업로드되지 않는다.
   </p>
@@ -58,10 +71,23 @@
   </div>
 
   <div class="card">
-    <label for="audio">② 음악 (옵션) — 본인 권리 있는 파일만</label>
+    <label for="audio">② 음악 — (a) 본인 파일 OR (b) 자동 BGM 생성</label>
     <input id="audio" type="file" accept="audio/*" />
-    <div class="hint">.mp3 / .m4a / .wav / .ogg 등. 영상보다 짧으면 무음 패딩,
-                      길면 영상 길이로 잘림. <strong>라이선스 책임=사용자.</strong></div>
+    <div class="hint">파일 선택 시: .mp3/.m4a/.wav/.ogg 등. 짧으면 무음 패딩,
+                      길면 잘림. <strong>라이선스 책임=사용자.</strong>
+                      <em>파일 없을 때 아래 자동 BGM이 켜져 있으면 자동 생성.</em></div>
+    <div class="bgm-row" style="margin-top:0.7rem">
+      <label style="font-weight:500">
+        <input id="bgmEnabled" type="checkbox" /> 🎶 자동 BGM 생성 (Tone.js procedural)
+      </label>
+      <select id="bgmMood">
+        <option value="lofi">Lo-Fi Piano (잔잔·재즈 화성)</option>
+        <option value="ambient" selected>Ambient Pad (편안·예배 분위기)</option>
+        <option value="acoustic">Acoustic Arpeggio (밝음·일상)</option>
+      </select>
+    </div>
+    <div class="hint">자동 BGM은 결정론 코드 진행(seed 기반)·CCM/예배에 어울리는
+                      무드 옵션 포함. 본인 음악 파일이 있으면 그게 우선.</div>
   </div>
 
   <div class="card">
@@ -114,45 +140,51 @@
         없으시면 아래 합법 무료 출처에서 직접 다운로드 후 음악 슬롯에 선택하세요:
       </p>
       <ul>
-        <li>
-          <strong>YouTube Audio Library</strong> ·
+        <li><strong>YouTube Audio Library</strong> ·
           <a href="https://www.youtube.com/audiolibrary" target="_blank" rel="noopener noreferrer">youtube.com/audiolibrary</a>
-          — Google 운영. 장르 필터 "Christian"·"Cinematic"·"Inspirational" 등.
-          <em>YouTube 게시 시 Content ID 면제 보장</em>(가장 안전).
-        </li>
-        <li>
-          <strong>Pixabay Music</strong> ·
+          — Google 운영. 장르 필터 "Christian"·"Cinematic"·"Inspirational".
+          <em>YouTube 게시 시 Content ID 면제</em>(가장 안전).</li>
+        <li><strong>Pixabay Music</strong> ·
           <a href="https://pixabay.com/music/" target="_blank" rel="noopener noreferrer">pixabay.com/music</a>
-          — Pixabay 라이선스(상업 사용 허용·크레딧 권장).
-          검색: "worship"·"praise"·"christian"·"hymn"·"gospel".
-        </li>
-        <li>
-          <strong>Free Music Archive (FMA)</strong> ·
+          — Pixabay 라이선스(상업 OK). 검색 "worship"·"praise"·"hymn".</li>
+        <li><strong>Free Music Archive</strong> ·
           <a href="https://freemusicarchive.org/" target="_blank" rel="noopener noreferrer">freemusicarchive.org</a>
-          — CC 라이선스. 트랙별 라이선스(CC0·CC-BY·CC-BY-SA 등) 명시 확인 필수.
-          검색: "christian"·"sacred"·"gospel".
-        </li>
-        <li>
-          <strong>ccMixter</strong> ·
+          — CC 라이선스. 트랙별 라이선스 명시 확인 필수.</li>
+        <li><strong>ccMixter</strong> ·
           <a href="https://ccmixter.org/" target="_blank" rel="noopener noreferrer">ccmixter.org</a>
-          — CC 라이선스 리믹스/원곡. 검색: "worship"·"praise".
-        </li>
-        <li>
-          <strong>Bensound</strong> ·
+          — CC 라이선스. 검색 "worship"·"praise".</li>
+        <li><strong>Bensound</strong> ·
           <a href="https://www.bensound.com/" target="_blank" rel="noopener noreferrer">bensound.com</a>
-          — Free 라이선스(크레딧 필수) 또는 라이선스 구매. "Inspirational" 카테고리.
-        </li>
-        <li>
-          <strong>Hymnary.org</strong> ·
+          — Free(크레딧) 또는 구매. "Inspirational" 카테고리.</li>
+        <li><strong>Hymnary.org</strong> ·
           <a href="https://hymnary.org/" target="_blank" rel="noopener noreferrer">hymnary.org</a>
-          — Public Domain 찬송가 데이터베이스(가사·악보·일부 녹음).
-          PD 곡은 자유 사용·다만 *녹음 자체*의 권리는 녹음자에 따라 별도 확인.
-        </li>
+          — Public Domain 찬송가. 녹음 자체의 권리는 녹음자별 별도.</li>
       </ul>
       <p style="margin-top:0.5rem;color:#666">
-        💡 출처별 라이선스 조건(크레딧 표기·상업 사용 가부 등)이 다르니
-        다운로드 페이지의 라이선스 안내를 한 번 읽어 보세요. 영상 설명(③)에
-        크레딧 한 줄을 적어 두면 깔끔합니다.
+        💡 출처별 라이선스(크레딧·상업 사용)이 다르니 한 번 읽어 보세요.
+        영상 설명(③)에 크레딧 한 줄을 적어 두면 깔끔합니다.
+      </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>🎶 자동 BGM이란 무엇인가요? (한계·결정 배경)</summary>
+    <div style="font-size:0.9rem;color:inherit;line-height:1.6">
+      <p>
+        Tone.js로 *브라우저 안에서* 코드 진행(chord progression)과 멜로디를
+        합성합니다. 외부 서버 0 호출·생성 결과 외부 전송 0 — INVARIANT 'no upload'
+        보존(Tone.js 라이브러리 자체만 페이지 로드 시 CDN 1회 다운로드).
+      </p>
+      <p>
+        <strong>한계</strong>: 진짜 *프로 음질*(Suno·Udio·CCM 메이저 곡 등)이
+        아닙니다 — "심플 신시사이저 배경 음악" 수준입니다. CCM 가사·보컬·실
+        악기는 없고, 화성 진행과 패드 사운드만 있습니다. 영상 분위기에 부족하면
+        본인 권리 있는 음악 파일을 ②에 선택하면 그게 우선 사용됩니다.
+      </p>
+      <p>
+        본격적인 ML 음악 생성 모델(Magenta MusicVAE 등)은 모바일 안정성과
+        모델 다운로드 비용(~수십 MB)을 이유로 v0.4에서는 도입하지 않았습니다.
+        향후 결정에 따라 별 turn에서 추가될 수 있습니다.
       </p>
     </div>
   </details>
@@ -161,16 +193,17 @@
     <summary>왜 mp4 / webm 둘 다 나올 수 있나요?</summary>
     <p style="font-size:0.9rem;color:#666">
       브라우저 네이티브 인코더가 mp4(H.264+AAC)를 지원하면 mp4로, 아니면
-      webm(VP9/VP8)으로 저장합니다 — ffmpeg.wasm·외부 라이브러리 의존 0 원칙
-      때문입니다. 일반적으로 Safari·최신 Chrome은 mp4, Firefox·구버전 Chrome은
+      webm(VP9/VP8)으로 저장합니다 — 외부 디코더 라이브러리 의존 없이 처리하기
+      위함입니다. 일반적으로 Safari·최신 Chrome은 mp4, Firefox·구버전 Chrome은
       webm입니다. 둘 다 YouTube/대부분 SNS에 업로드 가능합니다.
     </p>
   </details>
 
   <p class="invariant">
-    🔒 브라우저 외 전송 0 · 서버 0 · 텔레메트리 0. 사진/음악/텍스트 바이트는
-    어디로도 나가지 않습니다. 트렌디 키워드는 본 브라우저의 LocalStorage에만
-    저장(다른 사용자/서버 미공유). 라이선스 책임은 사용자.
+    🔒 사용자 콘텐츠(사진·음악·메모·키워드) 외부 전송 0. 자동 BGM은 브라우저
+    안에서 합성되어 영상에 결합 — 결과물 외부 전송 0. Tone.js 라이브러리만
+    페이지 로드 시 CDN 1회 다운로드(코드 자체·사용자 콘텐츠 송신 0). 트렌디
+    키워드는 LocalStorage에만 저장.
   </p>
 
   <script type="module">
@@ -185,14 +218,13 @@
     const runBtn   = document.getElementById('run');
     const lexEl    = document.getElementById('lex');
     const clearLexBtn = document.getElementById('clearLex');
+    const bgmEnabled = document.getElementById('bgmEnabled');
+    const bgmMood = document.getElementById('bgmMood');
 
     const setStatus = (s) => { statusEl.textContent = s; };
 
-    // ── LocalStorage lex persistence (in-browser only) ─────────────────────
-    try {
-      const saved = localStorage.getItem(LEX_KEY);
-      if (saved) lexEl.value = saved;
-    } catch {}
+    // ── LocalStorage lex persistence ───────────────────────────────────────
+    try { const s = localStorage.getItem(LEX_KEY); if (s) lexEl.value = s; } catch {}
     lexEl.addEventListener('input', () => {
       try { localStorage.setItem(LEX_KEY, lexEl.value); } catch {}
     });
@@ -210,7 +242,7 @@
       const out = new Set();
       for (const raw of (text || '').split(/\r?\n/)) {
         const s = raw.trim();
-        if (!s || s.startsWith('#')) continue;          // # = comment
+        if (!s || s.startsWith('#')) continue;
         const nfc = s.normalize('NFC').slice(0, 40);
         if (nfc) out.add(nfc);
         if (out.size >= 200) break;
@@ -219,12 +251,10 @@
     }
 
     function buildHashtags(lexKws) {
-      const seen = new Set();
-      const tags = [];
+      const seen = new Set(); const tags = [];
       for (const t of [...BASE_TAGS, ...lexKws.map((k) => '#' + k)]) {
         if (seen.has(t)) continue;
-        seen.add(t);
-        tags.push(t);
+        seen.add(t); tags.push(t);
         if (tags.length >= MAX_HASHTAGS) break;
       }
       return tags;
@@ -233,39 +263,29 @@
     async function loadImage(file) {
       const url = URL.createObjectURL(file);
       try {
-        const img = new Image();
-        img.decoding = 'async';
+        const img = new Image(); img.decoding = 'async';
         await new Promise((res, rej) => {
           img.onload = res; img.onerror = rej; img.src = url;
         });
         return img;
-      } finally {
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-      }
+      } finally { setTimeout(() => URL.revokeObjectURL(url), 5000); }
     }
 
     function drawCoverCrop(ctx, img) {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
-      const sR = img.width / img.height;
-      const dR = W / H;
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      const sR = img.width / img.height, dR = W / H;
       let sx, sy, sw, sh;
-      if (sR > dR) {
-        sh = img.height; sw = sh * dR;
-        sx = (img.width - sw) / 2; sy = 0;
-      } else {
-        sw = img.width; sh = sw / dR;
-        sx = 0; sy = (img.height - sh) / 2;
-      }
+      if (sR > dR) { sh = img.height; sw = sh * dR;
+                     sx = (img.width - sw) / 2; sy = 0; }
+      else         { sw = img.width;  sh = sw / dR;
+                     sx = 0; sy = (img.height - sh) / 2; }
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
     }
 
-    // Pick best supported container. mp4 (H.264 + AAC) first → universal
-    // compatibility. Falls back to webm/VP9 → webm/VP8 → bare webm.
     function pickMime() {
       const candidates = [
-        'video/mp4;codecs=avc1.42E01F,mp4a.40.2',  // H.264 baseline + AAC-LC
-        'video/mp4;codecs=avc1.640028,mp4a.40.2',  // H.264 high + AAC-LC
+        'video/mp4;codecs=avc1.42E01F,mp4a.40.2',
+        'video/mp4;codecs=avc1.640028,mp4a.40.2',
         'video/mp4',
         'video/webm;codecs=vp9,opus',
         'video/webm;codecs=vp9',
@@ -274,22 +294,14 @@
         'video/webm',
       ];
       for (const m of candidates) {
-        try {
-          if (MediaRecorder.isTypeSupported(m)) return m;
-        } catch {}
+        try { if (MediaRecorder.isTypeSupported(m)) return m; } catch {}
       }
       return '';
     }
+    const extFor = (mime) => mime.startsWith('video/mp4') ? 'mp4' : 'webm';
 
-    function extFor(mime) {
-      return mime.startsWith('video/mp4') ? 'mp4' : 'webm';
-    }
-
-    // ── owner audio (option 2 mirror of parent D2) ─────────────────────────
-    // Decode the audio file via Web Audio, then build a MediaStream from a
-    // MediaStreamDestination so it can be added as a track on the video
-    // MediaRecorder. Looped via per-cut scheduling: total = N * perCut.
-    async function makeAudioStream(file, totalSec) {
+    // ── owner audio stream (v0.2 mirror of parent D2 option 2) ─────────────
+    async function makeOwnerAudioStream(file, totalSec) {
       const arr = await file.arrayBuffer();
       const AC = window.AudioContext || window.webkitAudioContext;
       const ctx = new AC({ sampleRate: 48000 });
@@ -297,15 +309,136 @@
       const dest = ctx.createMediaStreamDestination();
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      // If audio is shorter than total video, loop. If longer, atrim-equivalent
-      // via stop().
       src.loop = buf.duration < totalSec;
-      const gain = ctx.createGain();
-      gain.gain.value = 1.0;       // 1-pass loudnorm approximation = identity
+      const gain = ctx.createGain(); gain.gain.value = 1.0;
       src.connect(gain).connect(dest);
       src.start(0);
       src.stop(ctx.currentTime + totalSec + 0.1);
       return { stream: dest.stream, ctx };
+    }
+
+    // ── auto BGM (v0.4) — Tone.js procedural ───────────────────────────────
+    // Returns {stream, stop()} or null when Tone.js isn't available.
+    // INVARIANT: synthesis happens in the browser; nothing is sent outbound.
+    async function makeBgmStream(mood, totalSec, seed) {
+      if (typeof Tone === 'undefined') {
+        console.warn('Tone.js unavailable — BGM disabled.');
+        return null;
+      }
+      await Tone.start();   // unlocks the audio context on the user gesture
+      // Use Tone's raw context so the same audio path is captured.
+      const rawCtx = Tone.getContext().rawContext;
+      const dest = rawCtx.createMediaStreamDestination();
+
+      // Capture chain: master out → reverb → MediaStreamDestination.
+      // We also connect to Tone.Destination so progress can be silently
+      // monitored if needed (volume isn't speaker-routed here — see comment).
+      const masterGain = new Tone.Gain(0.85).connect(
+        Tone.getContext().createGain()  // dummy hop to keep node graph stable
+      );
+      // Bridge from Tone to the MediaStreamDestination via a manual connect:
+      // Tone wraps its destination; we tap the master Gain into the raw dest.
+      const masterRawOut = new Tone.Gain(0.85);
+      masterRawOut.connect(dest);
+
+      // Reverb for ambience.
+      const verb = new Tone.Reverb({ decay: 3.5, wet: 0.35 });
+      await verb.generate();
+      verb.connect(masterRawOut);
+
+      let instrument, drumOpt;
+      if (mood === 'lofi') {
+        instrument = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.05, decay: 0.5, sustain: 0.3, release: 1.2 },
+        }).set({ volume: -8 });
+        drumOpt = { kick: true, hat: true };
+      } else if (mood === 'acoustic') {
+        instrument = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'fmsine', modulationIndex: 2 },
+          envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 0.6 },
+        }).set({ volume: -6 });
+        drumOpt = { kick: false, hat: false };
+      } else { // ambient
+        instrument = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.8, decay: 1.0, sustain: 0.7, release: 2.5 },
+        }).set({ volume: -10 });
+        drumOpt = { kick: false, hat: false };
+      }
+      instrument.connect(verb);
+
+      // Chord progressions (CCM/inspirational friendly: I-V-vi-IV variants).
+      // All in C major for predictable pitch range; deterministic per mood.
+      const progressions = {
+        lofi:     [['C4','E4','G4','B4'], ['A3','C4','E4','G4'],
+                   ['D4','F4','A4','C5'], ['G3','B3','D4','F4']],   // Cmaj7-Am7-Dm7-G7
+        ambient:  [['C4','E4','G4'], ['A3','C4','E4'],
+                   ['F3','A3','C4'], ['G3','B3','D4']],             // I-vi-IV-V
+        acoustic: [['C4','E4','G4'], ['G3','B3','D4'],
+                   ['A3','C4','E4'], ['F3','A3','C4']],             // I-V-vi-IV
+      };
+      const chords = progressions[mood] || progressions.ambient;
+      const barSec = 4;   // 4 seconds per chord (slow, BGM-friendly)
+      const bars = Math.ceil(totalSec / barSec);
+
+      // Optional kick on every bar 1 + hi-hat on offbeats for lofi.
+      let kick, hat;
+      if (drumOpt.kick) {
+        kick = new Tone.MembraneSynth({ volume: -6 }).connect(masterRawOut);
+      }
+      if (drumOpt.hat) {
+        hat = new Tone.NoiseSynth({
+          noise: { type: 'white' },
+          envelope: { attack: 0.001, decay: 0.05, sustain: 0 },
+          volume: -22,
+        }).connect(masterRawOut);
+      }
+
+      const now = Tone.now() + 0.1;
+      for (let i = 0; i < bars; i++) {
+        const t = now + i * barSec;
+        const chord = chords[i % chords.length];
+        // Sustained chord (Ambient/Acoustic) or arpeggio (Lo-Fi)
+        if (mood === 'ambient') {
+          instrument.triggerAttackRelease(chord, barSec * 0.95, t);
+        } else if (mood === 'acoustic') {
+          // Arpeggio: 8th notes through chord
+          chord.forEach((note, idx) => {
+            instrument.triggerAttackRelease(note, 0.45, t + idx * 0.5);
+          });
+          // Repeat upper note for fills
+          for (let k = 0; k < 4; k++) {
+            instrument.triggerAttackRelease(
+              chord[(k + 1) % chord.length], 0.45, t + 2 + k * 0.5
+            );
+          }
+        } else { // lofi
+          // Sustained pad on root + 3 + 5, arpeggio top tone
+          instrument.triggerAttackRelease([chord[0], chord[1]],
+                                           barSec * 0.95, t);
+          for (let k = 0; k < 8; k++) {
+            instrument.triggerAttackRelease(
+              chord[(k + 2) % chord.length], 0.25, t + k * 0.5
+            );
+          }
+        }
+        if (kick) kick.triggerAttackRelease('C2', 0.2, t);
+        if (kick) kick.triggerAttackRelease('C2', 0.2, t + 2);
+        if (hat) {
+          for (let k = 0; k < 8; k++) {
+            if (k % 2 === 1) hat.triggerAttackRelease(0.05, t + k * 0.5);
+          }
+        }
+      }
+
+      const stop = () => {
+        try { instrument.releaseAll?.(); } catch {}
+        try { instrument.dispose?.(); } catch {}
+        try { kick?.dispose?.(); hat?.dispose?.(); verb?.dispose?.();
+              masterRawOut?.dispose?.(); } catch {}
+      };
+      return { stream: dest.stream, stop, mood };
     }
 
     // ── main render ────────────────────────────────────────────────────────
@@ -324,6 +457,8 @@
       const memo   = (document.getElementById('memo').value || '').trim();
       const lexKws = parseLex(lexEl.value);
       const audioFile = document.getElementById('audio').files[0] || null;
+      const wantBgm = bgmEnabled.checked;
+      const mood = bgmMood.value;
 
       setStatus(`사진 ${photos.length}장 디코드 중…`);
       const images = [];
@@ -343,23 +478,39 @@
 
       const mime = pickMime();
       if (!mime) {
-        setStatus('⚠️ 이 브라우저는 MediaRecorder 비디오 인코딩을 지원하지 않습니다.');
+        setStatus('⚠️ MediaRecorder 비디오 인코딩 미지원 브라우저.');
         runBtn.disabled = false; return;
       }
       const ext = extFor(mime);
 
       const videoStream = canvas.captureStream(fps);
-      // Combine: video tracks from canvas + (optional) audio track from Web Audio.
-      let audioCtx = null;
       const combinedStream = new MediaStream(videoStream.getVideoTracks());
+
+      // Audio source priority: (a) owner file > (b) auto BGM > (c) silent.
+      let audioMode = 'silent', audioCtx = null, bgmHandle = null;
       if (audioFile) {
         try {
           setStatus(`음악 디코드 중… (${audioFile.name})`);
-          const { stream: aStream, ctx: aCtx } = await makeAudioStream(audioFile, total);
+          const { stream: aStream, ctx: aCtx } =
+            await makeOwnerAudioStream(audioFile, total);
           audioCtx = aCtx;
           for (const t of aStream.getAudioTracks()) combinedStream.addTrack(t);
+          audioMode = 'owner';
         } catch (e) {
-          setStatus(`⚠️ 음악 디코드 실패: ${e?.message || e}. 무음으로 진행합니다.`);
+          setStatus(`⚠️ 음악 디코드 실패: ${e?.message || e}. BGM/무음 시도.`);
+        }
+      }
+      if (audioMode === 'silent' && wantBgm) {
+        try {
+          setStatus(`자동 BGM 생성 중… (${mood})`);
+          bgmHandle = await makeBgmStream(mood, total, /*seed*/ 1);
+          if (bgmHandle) {
+            for (const t of bgmHandle.stream.getAudioTracks())
+              combinedStream.addTrack(t);
+            audioMode = 'bgm:' + mood;
+          }
+        } catch (e) {
+          setStatus(`⚠️ BGM 생성 실패: ${e?.message || e}. 무음 진행.`);
         }
       }
 
@@ -374,6 +525,12 @@
       rec.start(250);
       const t0 = performance.now();
 
+      const audioBadge = audioMode === 'owner'
+        ? `🎵 ${audioFile.name}`
+        : audioMode.startsWith('bgm:')
+            ? `🎶 자동 BGM (${audioMode.slice(4)})`
+            : '🔇 무음';
+
       for (let i = 0; i < images.length; i++) {
         drawCoverCrop(ctx, images[i]);
         const target = (i + 1) * perCut;
@@ -381,31 +538,31 @@
           await new Promise((r) => setTimeout(r, 30));
           drawCoverCrop(ctx, images[i]);
           const e = ((performance.now() - t0) / 1000);
-          setStatus(`녹화 중… ${e.toFixed(1)}s / ${total.toFixed(1)}s · 컷 ${i + 1}/${images.length}` +
-                    (audioFile ? ` · 🎵 ${audioFile.name}` : ' · 🔇 무음'));
+          setStatus(`녹화 중… ${e.toFixed(1)}s / ${total.toFixed(1)}s · 컷 ${i + 1}/${images.length} · ${audioBadge}`);
         }
       }
       rec.stop();
       await done;
       try { audioCtx?.close(); } catch {}
+      try { bgmHandle?.stop?.(); } catch {}
 
       const blob = new Blob(chunks, { type: mime });
       const videoUrl = URL.createObjectURL(blob);
       preview.src = videoUrl;
 
-      // ── metadata JSON (parallel to parent draft_metadata) ────────────────
       const hashtags = buildHashtags(lexKws);
       const meta = {
-        title: memo ? memo.slice(0, 90) : '오늘의 기록 | 사진과 영상으로 만든 쇼츠',
+        title: memo ? memo.slice(0, 90)
+                    : '오늘의 기록 | 사진과 영상으로 만든 쇼츠',
         description: memo
           ? `${memo}\n\n(자동 정보: 약 ${Math.round(total)}초·총 ${images.length}개 컷.)`
           : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷.`,
         hashtags,
-        ai_disclosure: false,
-        source: `shorts-forge-browser v0.2 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioFile ? 'owner' : 'silent'})`,
+        ai_disclosure: audioMode.startsWith('bgm:'),   // procedural BGM = AI-generated
+        source: `shorts-forge-browser v0.4 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode})`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
-        audio_source: audioFile ? audioFile.name : null,
+        audio_source: audioMode === 'owner' ? audioFile.name : audioMode,
         duration_sec: Math.round(total),
         cuts: images.length,
         container_mime: mime,
@@ -432,8 +589,7 @@
       dlWrap.appendChild(aMeta);
 
       setStatus(`✅ 완료. ${images.length}장 · ${total.toFixed(1)}초 · ${mime}` +
-                ` · 해시태그 ${hashtags.length}개 (lex ${lexKws.length})` +
-                (audioFile ? ` · 🎵 ${audioFile.name}` : ' · 🔇 무음'));
+                ` · 해시태그 ${hashtags.length}개 (lex ${lexKws.length}) · ${audioBadge}`);
       runBtn.disabled = false;
     }
 

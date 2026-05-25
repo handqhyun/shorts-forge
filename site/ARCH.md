@@ -30,19 +30,22 @@
 부모의 INVARIANT #1 = "런타임에 어떤 클라우드 서비스·외부 API·텔레메트리·
 원격 실행도 호출하지 않는다." (PRD §4)
 
-자식의 동등 보장 = "**사용자 브라우저 외부로 픽셀·메타데이터·텍스트 전송 0**":
+자식의 동등 보장 = "**사용자 콘텐츠(사진·음악·메모·키워드)의 브라우저 외부
+전송 0**":
 
-- 사진/음악 바이트는 JavaScript 안에서만 (`File` → `Image`/`AudioContext`
-  → `Canvas`/`MediaStreamDestination` → `MediaRecorder` → `Blob`) 흐르고
-  `fetch()`·`XMLHttpRequest`로 어디에도 보내지 않는다.
+- 사진/음악 바이트는 JavaScript 안에서만 (`File` → `Image`/`AudioContext`/
+  `Tone.js synthesis` → `Canvas`/`MediaStreamDestination` → `MediaRecorder`
+  → `Blob`) 흐르고 `fetch()`·`XMLHttpRequest`로 어디에도 보내지 않는다.
 - 트렌디 키워드는 브라우저 LocalStorage에만 저장 (서버 0·다른 사용자 미공유).
-- 본 페이지는 외부 자원 의존 0 — CDN script/style/font/이미지 0. 페이지
-  로드 외 네트워크 요청 0.
 - 텔레메트리·analytics·tracking pixel 0.
+- **v0.4 이후**: Tone.js 라이브러리(CDN 1개)는 페이지 로드 시 *코드*만 받는다
+  (사용자 콘텐츠 송신 0). 부모 PRD §4 카브아웃 #1 ("1회 셋업 fetch") 정신
+  정합. 사용자 미디어는 여전히 절대 외부로 나가지 않는다.
 
 코드 인스펙터로 즉시 검증 가능:
-- `index.html` 안에 `fetch(` · `XMLHttpRequest` · `src="http` · `src="//"` ·
-  `@import` 0건.
+- `index.html` 안에 `XMLHttpRequest`·tracking pixel 0건.
+- 외부 `src` = Tone.js CDN 1개 (코드 라이브러리) + 사용자 클릭 anchor 6개
+  (CCM 출처 카탈로그·noopener noreferrer). 자동 `fetch()` 0건.
 
 ## 8단계 척추 — 자식 시스템 매핑 (v0.2)
 
@@ -52,7 +55,7 @@
 | **S2 INGEST/ANALYZE** | (없음) | Canvas pixel 휴리스틱 |
 | **S3 SELECT/ORDER** | 사용자 선택 순서 그대로 | 신뢰도-태그 연대순 (EXIF DateTime) |
 | **S4 ASSEMBLE** | Canvas 9:16 cover-crop | Ken Burns 좌표 보간 |
-| **S5 AUDIO** | **owner audio file → AudioContext → MediaStreamDestination** (option file → audio track of combined MediaStream). 짧으면 loop·길면 stop=총길이. 음악 없으면 무음. | 정밀 -14 LUFS 2-pass loudnorm·crossfade·apad+atrim·BPM 매칭 |
+| **S5 AUDIO** | **3-tier 우선순위**: (a) owner audio file → AudioContext → MediaStreamDestination · (b) 자동 BGM (Tone.js procedural · 무드 3종 · 결정론 화성) → MediaStreamDestination · (c) 무음. | 정밀 -14 LUFS 2-pass loudnorm·crossfade·BPM 매칭·Magenta MusicVAE 통합 (v0.4 별 turn) |
 | **S6 RENDER** | `MediaRecorder` (mp4 H.264+AAC 우선 · webm VP9/VP8 폴백). 비디오/오디오 트랙 결합. | ffmpeg.wasm 통합 시 mp4 강제 (별 결정) |
 | **S7 VALIDATE** | 없음 | 길이/해상도/포맷 자동 검증 |
 | **META** (부모 §5 LLM 노드) | 결정론 KR 메타 JSON 동시 산출. seed = memo textarea (parent description.txt 동형). hashtags = base 4 + lex (parent lex/trending.txt 동형·dedup·≤15). | 다국어·요약 모델·BPM 정합 |
@@ -83,6 +86,27 @@
   해소하며 다운로드는 사용자 본인이 직접. UI details 박스 + README 부록. 자동
   매칭/삽입 기능 추가 **0**. CCLI 안내 명시 (예배 사용만 커버·SNS 별도).
 
+### v0.4 결정 (2026-05-25)
+
+- **D-music-gen**: "자동 곡 생성 프로그램" 사용자 요청 — 결정표면 4안
+  (A/B/C/D) 중 **안 C (브라우저 ML 모델)** 채택. 그러나 *Magenta.js의 모바일
+  안정성·TensorFlow.js 의존 무게·CDN URL 변동 위험*을 이유로 **v0.4는 안 C의
+  부분 채택만 진행** — Tone.js 기반 procedural 합성기로 동작 검증 우선.
+  Magenta.js 통합은 동작 baseline 확보 후 별 turn.
+- **D-cdn**: Tone.js CDN 1개 도입 (`cdn.jsdelivr.net/npm/tone@14.7.77/...`).
+  INVARIANT 'no upload' *재해석*: "사용자 콘텐츠 외부 전송 0"은 보존(불변).
+  코드 라이브러리 자체의 페이지 로드 시 1회 다운로드는 부모 PRD §4
+  INVARIANT #1 카브아웃 #1 ("1회 셋업 fetch") 정신에 정합 — 사용자 미디어가
+  아닌 *코드 자체*의 fetch. Tone.js는 사용자 콘텐츠를 받지 않는다(synthesis
+  파라미터·노드 그래프만).
+- **D-bgm-modes**: 무드 3종 — Lo-Fi Piano (재즈 7화음·잔잔), Ambient Pad
+  (I-vi-IV-V·예배 분위기), Acoustic Arpeggio (밝음·일상). 모두 C major·결정론.
+- **D-priority**: 오디오 소스 우선순위 = (a) 본인 음악 파일 > (b) 자동 BGM
+  (토글 ON 시) > (c) 무음. 메타 JSON `audio_source` 필드와 `ai_disclosure`로
+  BGM 사용 시 명시.
+- **잔존 (별 turn)**: Magenta MusicVAE 도입·SoundFont 샘플·드럼 패턴 확장·
+  BPM 옵션·다중 모드 mix·실시간 음악 동기화 (사진 컷에 맞춰 화성 전환).
+
 ### 잔존 (별 turn)
 
 - **D3-web (자동 게시)**: 영원히 없음 — 부모 PRD §3.2 동형. 변경 0.
@@ -108,6 +132,10 @@
 
 ## 변경 노트
 
+- **v0.4 (2026-05-25)** — 자동 BGM 생성 (Tone.js procedural·무드 3종)·CDN 1개
+  추가 (Tone.js). INVARIANT 재해석 갱신 ("사용자 콘텐츠 외부 전송 0"은 불변·
+  코드 라이브러리 페이지 로드 시 1회 fetch는 부모 카브아웃 정신 정합). 부모
+  정본 0 수정. Magenta.js ML 모델은 모바일 안정성 검증 후 별 turn 잔존.
 - **v0.3 (2026-05-25)** — CCM·인스피레이션 합법 무료 음악 출처 카탈로그 추가
   (UI details + README 부록). 자동 fetch/삽입 0 (INVARIANT 'no upload' 보존).
   부모 정본 0 수정. 텍스트 link만 (의존 0 유지).

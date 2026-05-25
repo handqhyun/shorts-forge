@@ -103,6 +103,23 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v1.2 결정 (2026-05-25)
+
+- **D-captions-burnin**: 사용자 "자막 삽입 가능하게" 요청. textarea(④-2)
+  한 줄당 한 컷 매칭·자동 정렬 결과 순서대로. Canvas 2D `fillText` +
+  `strokeText` (외곽선) + 둥근 모서리 반투명 검은 배경. CDN 추가 0.
+- **D-caption-layout**: 화면 하단 ~13% 위치·시스템 폰트(Apple SD Gothic Neo·
+  Noto Sans KR)·54px bold·greedy word wrap (한국어 char fallback)·최대 4줄·
+  한 자막당 200자 cap.
+- **D-caption-timing**: cut hold 중에만 표시(트랜지션/intro/outro 시 0).
+  단순·예측 가능. cross fade 중 caption fade는 별 turn 잔존.
+- **D-caption-alignment**: 한 줄 = 한 cut slot. 빈 줄 = 자막 없음(slot 차지).
+  `#` 으로 시작하는 줄 = 주석 (slot 차지 안 함). 사용자 정렬 의도 명확화.
+- **D-meta-disclosure**: `media_order[].caption` + `captions_used` /
+  `captions_total_slots` 메타 JSON 필드 추가.
+- **잔존 (별 turn)**: 트랜지션 중 자막 fade·자막 위치 옵션(상단/중앙)·
+  폰트/크기/색 옵션·SRT 형식 import·OCR/STT 자동 생성·다국어.
+
 ### v1.1 결정 (2026-05-25)
 
 - **D-video-full-duration**: 사용자 "동영상은 컷당 초 영향 안 받고 전부
@@ -266,6 +283,11 @@
 
 ## 변경 노트
 
+- **v1.2 (2026-05-25)** — 자막 burn-in 시스템 도입 (④-2 textarea·한 줄당
+  한 컷·자동 정렬 결과 순서대로). Canvas 2D fillText + strokeText + 둥근
+  검은 배경. 한국어 wrap(word + char fallback)·최대 4줄·시스템 폰트.
+  cut hold 중에만 표시(트랜지션 시 0). 메타 JSON media_order[].caption +
+  captions_used/total_slots. CDN 변경 0·INVARIANT 보존.
 - **v1.1 (2026-05-25)** — 동영상 hold 시간 = 자기 duration 전체 (v1.0의
   perCut clamp 번복). resolvePhase/totalTimeWithTransitions를 per-cut
   holdSecs 배열로 일반화. 안전 클램프 [0.6초, 10분]. 메타 JSON

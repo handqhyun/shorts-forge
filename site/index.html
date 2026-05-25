@@ -119,6 +119,15 @@
   </div>
 
   <div class="card">
+    <label for="captions">④-2 자막 (옵션) — <strong>한 줄에 한 컷</strong></label>
+    <textarea id="captions" class="mono"
+              placeholder="# 빈 줄 = 자막 없음·# 주석은 '#'으로 시작&#10;첫 번째 사진/동영상 자막&#10;두 번째 자막&#10;세 번째 자막"></textarea>
+    <div class="hint">자동 정렬된 미디어 순서대로 한 줄씩 매칭. 줄이 부족하면 그
+                      컷부터 자막 없음. 컷이 표시되는 동안만 화면 하단에 burn-in
+                      (트랜지션 중에는 안 보임). 자동 줄바꿈·검은 배경+흰 글자.</div>
+  </div>
+
+  <div class="card">
     <div class="row">
       <div>
         <label for="seconds">⑤ 사진 한 장당 초 (1.0–6.0)</label>
@@ -179,6 +188,33 @@
       <p style="margin-top:0.5rem;color:#666">
         💡 출처별 라이선스(크레딧·상업 사용)이 다르니 한 번 읽어 보세요.
         영상 설명(③)에 크레딧 한 줄을 적어 두면 깔끔합니다.
+      </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>💬 자막 (v1.2 — 컷별 burn-in)</summary>
+    <div style="font-size:0.9rem;color:inherit;line-height:1.6">
+      <p>
+        ④-2 textarea에 <strong>한 줄당 한 컷</strong>으로 자막을 입력하면
+        영상에 burn-in 됩니다. 자동 정렬된 미디어 순서대로 매칭:
+      </p>
+      <pre style="background:rgba(127,127,127,0.1);padding:0.6rem;border-radius:6px;font-size:0.85rem;line-height:1.4;overflow-x:auto">
+# 주석 줄은 무시되고 컷 슬롯도 차지하지 않음
+첫 번째 사진/동영상 자막
+두 번째 자막
+
+네 번째 자막 (세 번째는 빈 줄이라 자막 없음)</pre>
+      <p>
+        <strong>스타일</strong>: 화면 하단 ~13% 위치·반투명 검은 배경 박스
+        (rounded)·흰색 굵은 글자·검은 외곽선(stroke)·자동 줄바꿈(최대 4줄)·
+        한 자막당 200자 한도·시스템 폰트(Apple SD Gothic Neo/Noto Sans KR).
+      </p>
+      <p>
+        <strong>표시 타이밍</strong>: <em>컷 hold 동안만</em> 표시됩니다 —
+        인트로/크로스페이드/페이드 블랙/아웃트로 트랜지션 구간에는 자막이
+        나오지 않습니다(트랜지션과 자막이 겹쳐 어수선해지는 것 방지).
+        메타 JSON `media_order[].caption`에 각 컷의 자막이 기록됩니다.
       </p>
     </div>
   </details>
@@ -609,7 +645,7 @@
       return out;
     }
 
-    function drawPhase(ctx, images, phase) {
+    function drawPhase(ctx, images, phase, captions) {
       clearFrame(ctx);
       if (phase.kind === 'done') return;
       if (phase.kind === 'intro') {
@@ -618,15 +654,16 @@
         ctx.globalAlpha = 1;
       } else if (phase.kind === 'cut') {
         drawCoverCrop(ctx, images[phase.i]);
+        // v1.2: caption burn-in only during stable cut holds.
+        if (captions && captions[phase.i]) {
+          drawCaption(ctx, captions[phase.i]);
+        }
       } else if (phase.kind === 'cross') {
         drawCoverCrop(ctx, images[phase.i]);
         ctx.globalAlpha = phase.blend;
         drawCoverCrop(ctx, images[phase.i + 1]);
         ctx.globalAlpha = 1;
       } else if (phase.kind === 'fadeBlack') {
-        // First half: outgoing image fades to black; second half: incoming
-        // image emerges from black. Result: a brief beat of pure black at
-        // the midpoint (cinematic punctuation).
         if (phase.blend < 0.5) {
           ctx.globalAlpha = 1 - phase.blend * 2;
           drawCoverCrop(ctx, images[phase.i]);
@@ -640,6 +677,109 @@
         drawCoverCrop(ctx, images[images.length - 1]);
         ctx.globalAlpha = 1;
       }
+    }
+
+    // v1.2: caption parsing — one line per cut, blank/comment lines skipped
+    // in a way that *preserves cut alignment*. To make the mapping
+    // unambiguous, blank lines stay as empty (no caption) and `#`-leading
+    // lines are treated as comments (also no caption — owner can document).
+    function parseCaptions(text, cutCount) {
+      const out = new Array(cutCount).fill('');
+      if (!text) return out;
+      const lines = text.split(/\r?\n/);
+      let cutIdx = 0;
+      for (const raw of lines) {
+        if (cutIdx >= cutCount) break;
+        const s = raw.replace(/^\s+|\s+$/g, '');
+        if (s.startsWith('#')) continue;   // comment: doesn't consume a cut slot
+        // assign (possibly empty) line to this cut slot
+        out[cutIdx] = s.normalize('NFC').slice(0, 200);
+        cutIdx++;
+      }
+      return out;
+    }
+
+    function _wrapCaption(ctx, text, maxW) {
+      // Greedy word-based wrap with Korean fallback (per-char if a token
+      // alone exceeds maxW).
+      const tokens = text.split(/(\s+)/).filter((s) => s.length > 0);
+      const lines = [];
+      let cur = '';
+      const push = () => { if (cur.trim()) lines.push(cur.trim()); cur = ''; };
+      for (const t of tokens) {
+        if (/^\s+$/.test(t)) { cur += t; continue; }
+        if (ctx.measureText(cur + t).width <= maxW) { cur += t; continue; }
+        // Token doesn't fit on the current line.
+        if (cur.trim()) push();
+        if (ctx.measureText(t).width <= maxW) { cur = t; continue; }
+        // Token alone exceeds line width — split by character (Korean prose).
+        let buf = '';
+        for (const ch of t) {
+          if (ctx.measureText(buf + ch).width > maxW && buf) {
+            lines.push(buf); buf = ch;
+          } else {
+            buf += ch;
+          }
+        }
+        cur = buf;
+      }
+      push();
+      return lines.slice(0, 4);   // hard cap 4 visual lines
+    }
+
+    function drawCaption(ctx, text, opts = {}) {
+      if (!text || !text.trim()) return;
+      const alpha = opts.alpha ?? 1;
+      const fontSize = 54;
+      const padX = W * 0.05;
+      const maxW = W - padX * 2 - 32;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `bold ${fontSize}px system-ui, -apple-system, ` +
+                 `"Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const lines = _wrapCaption(ctx, text, maxW);
+      const lineHeight = Math.round(fontSize * 1.3);
+      const bottomMargin = Math.round(H * 0.13);
+      const totalH = lines.length * lineHeight;
+      const firstY = H - bottomMargin - totalH + lineHeight / 2;
+
+      // Dark translucent background plate.
+      const bgPad = 18;
+      const bgX = W * 0.04;
+      const bgW = W * 0.92;
+      const bgY = firstY - lineHeight / 2 - bgPad;
+      const bgH = totalH + bgPad * 2;
+      ctx.fillStyle = `rgba(0,0,0,${0.55 * alpha})`;
+      // Rounded corners (manual).
+      const r = 16;
+      ctx.beginPath();
+      ctx.moveTo(bgX + r, bgY);
+      ctx.lineTo(bgX + bgW - r, bgY);
+      ctx.quadraticCurveTo(bgX + bgW, bgY, bgX + bgW, bgY + r);
+      ctx.lineTo(bgX + bgW, bgY + bgH - r);
+      ctx.quadraticCurveTo(bgX + bgW, bgY + bgH, bgX + bgW - r, bgY + bgH);
+      ctx.lineTo(bgX + r, bgY + bgH);
+      ctx.quadraticCurveTo(bgX, bgY + bgH, bgX, bgY + bgH - r);
+      ctx.lineTo(bgX, bgY + r);
+      ctx.quadraticCurveTo(bgX, bgY, bgX + r, bgY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text with subtle black stroke for legibility on any background.
+      ctx.lineWidth = 5;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = `rgba(0,0,0,${0.9 * alpha})`;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      for (let i = 0; i < lines.length; i++) {
+        const y = firstY + i * lineHeight;
+        ctx.strokeText(lines[i], W / 2, y);
+        ctx.fillText(lines[i], W / 2, y);
+      }
+      ctx.restore();
     }
 
     function pickMime() {
@@ -1394,6 +1534,7 @@
       const fps    = parseInt(document.getElementById('fps').value, 10) || 30;
       const memo   = (document.getElementById('memo').value || '').trim();
       const lexKws = parseLex(lexEl.value);
+      const captionsText = document.getElementById('captions').value || '';
       const audioFile = document.getElementById('audio').files[0] || null;
       const wantBgm = bgmEnabled.checked;
       const mood = bgmMood.value;
@@ -1427,6 +1568,9 @@
       const transProfile = pickTransitionProfile(mood, wantBgm);
       const blackBars = planBlackTransitions(images.length, transProfile);
       const total = totalTimeWithTransitions(holdSecs, transProfile, blackBars);
+      // v1.2: parse captions aligned to the auto-sorted media order.
+      const captions = parseCaptions(captionsText, images.length);
+      const captionsUsed = captions.filter((c) => c && c.trim()).length;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
@@ -1521,7 +1665,7 @@
         }
         ensureVideoState(media, active);
 
-        drawPhase(ctx, images, phase);
+        drawPhase(ctx, images, phase, captions);
         const mediaTag = (i) => media[i]?.kind === 'video' ? '🎬' : '🖼';
         const label = phase.kind === 'intro'    ? '인트로 페이드'
                     : phase.kind === 'outro'    ? '아웃트로 페이드'
@@ -1558,7 +1702,7 @@
           : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷 (사진 ${photoCount}·동영상 ${videoCount}).`,
         hashtags,
         ai_disclosure: audioMode.startsWith('bgm:'),
-        source: `shorts-forge-browser v1.1 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount}; video_hold=full_duration)`,
+        source: `shorts-forge-browser v1.2 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount}; video_hold=full_duration; captions=${captionsUsed}/${images.length})`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
         audio_source: audioMode === 'owner' ? audioFile.name : audioMode,
@@ -1571,7 +1715,10 @@
           name: m.file.name,
           ts: new Date(m.ts).toISOString(),
           hold_sec: Math.round(holdSecs[i] * 100) / 100,
+          caption: captions[i] || null,
         })),
+        captions_used: captionsUsed,
+        captions_total_slots: images.length,
         container_mime: mime,
         transitions: {
           profile: transProfileName,

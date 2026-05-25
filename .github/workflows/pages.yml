@@ -35,3 +35,4 @@ jobs:
           path: site
       - id: deployment
         uses: actions/deploy-pages@v4
+# redeploy trigger 2026-05-25T10:53:26Z — Pages CDN stale (origin v0.7 OK, edge serving v0.1)

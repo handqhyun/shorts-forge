@@ -105,6 +105,14 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v0.5 (2026-05-25)** — BGM 품질 ↑ (procedural 정교화·CDN 추가 0): 이펙트
+  체인(Reverb·Chorus·Compressor·EQ3·FeedbackDelay lofi only)·베이스 라인 추가
+  (MonoSynth sine 1옥타브 아래·lofi 워킹 베이스 passing tone)·8바 phrase
+  A-A-B-A 변주·모드별 instrument 차별화(lofi=FMSynth e-piano / ambient=Synth
+  sine + AMSynth pad layer / acoustic=FMSynth bright)·dynamics(seeded LCG
+  velocity 0.55-0.9)·드럼 패턴(lofi=kick+hat+rim·acoustic=sparse kick·ambient=
+  none). **한계는 여전**: 가사·보컬·실 악기 샘플 0. 진짜 피아노 샘플
+  (Salamander)·ML 모델은 v0.5 안정 후 별 turn.
 - **v0.4 (2026-05-25)** — 자동 BGM 생성 추가 (Tone.js procedural·CCM/예배에
   적합한 무드 3종: Lo-Fi Piano · Ambient Pad · Acoustic Arpeggio). 결정론 화성
   진행(I-V-vi-IV 변형) · 사용자 음악 파일 없을 때 토글 ON 시 자동 생성. 메타

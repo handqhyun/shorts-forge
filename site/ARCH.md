@@ -93,6 +93,21 @@
   안정성·TensorFlow.js 의존 무게·CDN URL 변동 위험*을 이유로 **v0.4는 안 C의
   부분 채택만 진행** — Tone.js 기반 procedural 합성기로 동작 검증 우선.
   Magenta.js 통합은 동작 baseline 확보 후 별 turn.
+
+### v0.5 결정 (2026-05-25)
+
+- **D-bgm-quality**: "BGM 퀄리티 ↑" 사용자 요청 (v0.4 모바일 동작 검증 완료
+  후). 자율 진행 — procedural 안에서 가능한 4축 확장: (1) 이펙트 체인
+  강화 (Reverb·Chorus·Compressor·EQ3·FeedbackDelay) (2) 베이스 라인 추가
+  (MonoSynth 1옥타브 아래) (3) 8바 phrase A-A-B-A 변주 (4) 모드별 instrument
+  차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
+  bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
+- **D-cdn-sample 보류**: Salamander Grand Piano sample pack (~5MB CDN
+  download) 도입은 *v0.5 안정성 확인 후* 별 turn. 모바일 첫-로드 시간·sample
+  pack URL 안정성·offline-after-load 시나리오 영향 검증 필요.
+- **D-ml-model 보류**: Magenta MusicVAE 도입도 동일 이유로 v0.5에서 보류.
+- **잔존 (별 turn)**: Salamander Sampler 도입·Magenta MusicVAE·BPM 옵션·
+  키 옵션 (C major 외)·다중 모드 mix·사진 컷에 동기 화성 전환.
 - **D-cdn**: Tone.js CDN 1개 도입 (`cdn.jsdelivr.net/npm/tone@14.7.77/...`).
   INVARIANT 'no upload' *재해석*: "사용자 콘텐츠 외부 전송 0"은 보존(불변).
   코드 라이브러리 자체의 페이지 로드 시 1회 다운로드는 부모 PRD §4
@@ -132,6 +147,10 @@
 
 ## 변경 노트
 
+- **v0.5 (2026-05-25)** — BGM 품질 ↑: 이펙트 체인(Reverb·Chorus·Compressor·
+  EQ3·FeedbackDelay)·베이스 라인 추가·8바 phrase A-A-B-A 변주·모드별 instrument
+  차별화·dynamics(seeded LCG velocity)·드럼 패턴 차별화. CDN 추가 0·INVARIANT
+  보존. Salamander piano sample/Magenta.js는 v0.5 안정 검증 후 별 turn.
 - **v0.4 (2026-05-25)** — 자동 BGM 생성 (Tone.js procedural·무드 3종)·CDN 1개
   추가 (Tone.js). INVARIANT 재해석 갱신 ("사용자 콘텐츠 외부 전송 0"은 불변·
   코드 라이브러리 페이지 로드 시 1회 fetch는 부모 카브아웃 정신 정합). 부모

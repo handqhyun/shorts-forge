@@ -168,23 +168,27 @@
   </details>
 
   <details>
-    <summary>🎶 자동 BGM이란 무엇인가요? (한계·결정 배경)</summary>
+    <summary>🎶 자동 BGM이란 무엇인가요? (v0.5 — 한계·결정 배경)</summary>
     <div style="font-size:0.9rem;color:inherit;line-height:1.6">
       <p>
-        Tone.js로 *브라우저 안에서* 코드 진행(chord progression)과 멜로디를
-        합성합니다. 외부 서버 0 호출·생성 결과 외부 전송 0 — INVARIANT 'no upload'
-        보존(Tone.js 라이브러리 자체만 페이지 로드 시 CDN 1회 다운로드).
+        Tone.js로 *브라우저 안에서* 8바 화성 진행 + 멜로디/아르페지오 + 베이스
+        라인 + (Lo-Fi/Acoustic) 드럼을 합성합니다. v0.5에서 음색·이펙트
+        체인(Reverb·Chorus·Compressor·EQ·FeedbackDelay)·dynamics·8바 phrase로
+        v0.4보다 풍부해졌습니다. 외부 서버 0 호출·생성 결과 외부 전송 0 —
+        INVARIANT 'no upload' 보존(Tone.js 라이브러리 자체만 페이지 로드 시
+        CDN 1회 다운로드).
       </p>
       <p>
-        <strong>한계</strong>: 진짜 *프로 음질*(Suno·Udio·CCM 메이저 곡 등)이
-        아닙니다 — "심플 신시사이저 배경 음악" 수준입니다. CCM 가사·보컬·실
-        악기는 없고, 화성 진행과 패드 사운드만 있습니다. 영상 분위기에 부족하면
-        본인 권리 있는 음악 파일을 ②에 선택하면 그게 우선 사용됩니다.
+        <strong>여전한 한계</strong>: 진짜 *프로 음질*(Suno·Udio·CCM 메이저 곡 등)이
+        아닙니다 — "정교한 신시사이저 BGM" 수준입니다. 가사·보컬·실 악기 샘플은
+        없고, FM/AM 합성과 화성 진행만 있습니다. 본인 권리 있는 음악 파일을
+        ②에 선택하면 그게 우선 사용됩니다.
       </p>
       <p>
-        본격적인 ML 음악 생성 모델(Magenta MusicVAE 등)은 모바일 안정성과
-        모델 다운로드 비용(~수십 MB)을 이유로 v0.4에서는 도입하지 않았습니다.
-        향후 결정에 따라 별 turn에서 추가될 수 있습니다.
+        본격적인 *진짜 피아노 샘플*(Salamander Grand Piano 등 ~5MB CDN sample
+        pack)이나 ML 음악 생성 모델(Magenta MusicVAE)은 모바일 안정성과
+        다운로드 비용을 이유로 v0.5에서도 도입하지 않았습니다. v0.5 안정 확인
+        후 별 turn 잔존.
       </p>
     </div>
   </details>
@@ -317,126 +321,258 @@
       return { stream: dest.stream, ctx };
     }
 
-    // ── auto BGM (v0.4) — Tone.js procedural ───────────────────────────────
+    // ── auto BGM (v0.5) — Tone.js procedural, richer voicing ───────────────
     // Returns {stream, stop()} or null when Tone.js isn't available.
     // INVARIANT: synthesis happens in the browser; nothing is sent outbound.
+    //
+    // v0.5 quality upgrades over v0.4 (CDN additions: 0, INVARIANT: unchanged)
+    //   - effects chain: Reverb + Chorus + FeedbackDelay (lofi only) +
+    //     Compressor + EQ3 (subtle low cut, high shelf for sparkle)
+    //   - bass voice: separate sine/triangle synth one octave below the root
+    //   - 8-bar phrase (A-A-B-A variation instead of 4-bar loop)
+    //   - dynamics: per-note velocity 0.5-0.9 (seeded LCG, deterministic)
+    //   - mode-specific instrument tweaks (FMSynth vs Synth sine vs AMSynth pad)
+    //   - drum patterns differentiated per mood
     async function makeBgmStream(mood, totalSec, seed) {
       if (typeof Tone === 'undefined') {
         console.warn('Tone.js unavailable — BGM disabled.');
         return null;
       }
-      await Tone.start();   // unlocks the audio context on the user gesture
-      // Use Tone's raw context so the same audio path is captured.
+      await Tone.start();
       const rawCtx = Tone.getContext().rawContext;
       const dest = rawCtx.createMediaStreamDestination();
 
-      // Capture chain: master out → reverb → MediaStreamDestination.
-      // We also connect to Tone.Destination so progress can be silently
-      // monitored if needed (volume isn't speaker-routed here — see comment).
-      const masterGain = new Tone.Gain(0.85).connect(
-        Tone.getContext().createGain()  // dummy hop to keep node graph stable
-      );
-      // Bridge from Tone to the MediaStreamDestination via a manual connect:
-      // Tone wraps its destination; we tap the master Gain into the raw dest.
-      const masterRawOut = new Tone.Gain(0.85);
-      masterRawOut.connect(dest);
+      // ── master bus ───────────────────────────────────────────────────────
+      // Tone graph: voices → effects → compressor → EQ → masterOut →
+      //              (a) raw MediaStreamDestination (captured into video)
+      //              (b) speaker (so user can also hear it live — optional)
+      const masterOut = new Tone.Gain(0.85);
+      // Connect master to MediaStreamDestination (for recording) AND speaker.
+      masterOut.connect(dest);
+      // Speakers are best-effort — some browsers block until first gesture.
+      try { masterOut.toDestination(); } catch {}
 
-      // Reverb for ambience.
-      const verb = new Tone.Reverb({ decay: 3.5, wet: 0.35 });
+      const eq = new Tone.EQ3({ low: -3, mid: 0, high: 2 }).connect(masterOut);
+      const comp = new Tone.Compressor({
+        threshold: -20, ratio: 3, attack: 0.01, release: 0.2,
+      }).connect(eq);
+
+      // Reverb tuned per mood (longer for ambient, shorter for acoustic).
+      const verbDecay = mood === 'ambient' ? 5.5
+                      : mood === 'acoustic' ? 1.6
+                      : 3.2;
+      const verbWet = mood === 'ambient' ? 0.55
+                    : mood === 'acoustic' ? 0.28
+                    : 0.45;
+      const verb = new Tone.Reverb({ decay: verbDecay, wet: verbWet });
       await verb.generate();
-      verb.connect(masterRawOut);
+      verb.connect(comp);
 
-      let instrument, drumOpt;
-      if (mood === 'lofi') {
-        instrument = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'triangle' },
-          envelope: { attack: 0.05, decay: 0.5, sustain: 0.3, release: 1.2 },
-        }).set({ volume: -8 });
-        drumOpt = { kick: true, hat: true };
-      } else if (mood === 'acoustic') {
-        instrument = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'fmsine', modulationIndex: 2 },
-          envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 0.6 },
-        }).set({ volume: -6 });
-        drumOpt = { kick: false, hat: false };
-      } else { // ambient
-        instrument = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'sine' },
-          envelope: { attack: 0.8, decay: 1.0, sustain: 0.7, release: 2.5 },
-        }).set({ volume: -10 });
-        drumOpt = { kick: false, hat: false };
+      // Subtle chorus widens lofi/ambient harmonies; off for clean acoustic.
+      let postFx = verb;
+      if (mood === 'lofi' || mood === 'ambient') {
+        const chorus = new Tone.Chorus({
+          frequency: 1.2, delayTime: 4, depth: 0.5, wet: 0.35,
+        }).start();
+        chorus.connect(verb);
+        postFx = chorus;
       }
-      instrument.connect(verb);
+      // Soft tape-style ping-pong delay for lofi only.
+      if (mood === 'lofi') {
+        const delay = new Tone.FeedbackDelay({
+          delayTime: 0.375, feedback: 0.25, wet: 0.2,
+        });
+        delay.connect(postFx);
+        postFx = delay;
+      }
 
-      // Chord progressions (CCM/inspirational friendly: I-V-vi-IV variants).
-      // All in C major for predictable pitch range; deterministic per mood.
+      // ── instruments (per mood) ───────────────────────────────────────────
+      let lead, pad = null;
+      if (mood === 'lofi') {
+        // Warm e-piano-ish FM with mellow envelope.
+        lead = new Tone.PolySynth(Tone.FMSynth, {
+          harmonicity: 2, modulationIndex: 6,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.02, decay: 0.6, sustain: 0.25, release: 1.4 },
+          modulation: { type: 'triangle' },
+          modulationEnvelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.5 },
+        }).set({ volume: -9 });
+      } else if (mood === 'acoustic') {
+        // Brighter FM with quick attack for arpeggio clarity.
+        lead = new Tone.PolySynth(Tone.FMSynth, {
+          harmonicity: 3, modulationIndex: 4,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.005, decay: 0.5, sustain: 0.15, release: 0.8 },
+        }).set({ volume: -7 });
+      } else { // ambient
+        // Slow-attack sine for sustained chords + AM pad layer for thickness.
+        lead = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'sine' },
+          envelope: { attack: 1.2, decay: 1.0, sustain: 0.75, release: 3.0 },
+        }).set({ volume: -12 });
+        pad = new Tone.PolySynth(Tone.AMSynth, {
+          harmonicity: 1.5,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 2.0, decay: 1.0, sustain: 0.8, release: 4.0 },
+          modulation: { type: 'sine' },
+        }).set({ volume: -18 });
+        pad.connect(postFx);
+      }
+      lead.connect(postFx);
+
+      // Bass voice — clean sub one octave below root, sine wave.
+      const bass = new Tone.MonoSynth({
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.02, decay: 0.5, sustain: 0.8, release: 0.8 },
+        filterEnvelope: { attack: 0.01, decay: 0.4, sustain: 0.5, release: 0.5,
+                          baseFrequency: 120, octaves: 2 },
+      }).set({ volume: -8 });
+      bass.connect(comp);   // bass bypasses reverb for clarity
+
+      // Drums — per mood.
+      let kick = null, hat = null, rim = null;
+      if (mood === 'lofi') {
+        kick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 6,
+          envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 },
+          volume: -5 }).connect(comp);
+        hat = new Tone.NoiseSynth({ noise: { type: 'white' },
+          envelope: { attack: 0.001, decay: 0.05, sustain: 0 },
+          volume: -24 }).connect(comp);
+        rim = new Tone.MetalSynth({
+          frequency: 200, envelope: { attack: 0.001, decay: 0.1, release: 0.05 },
+          harmonicity: 5.1, modulationIndex: 32, resonance: 4000,
+          octaves: 1.5, volume: -28 }).connect(comp);
+      } else if (mood === 'acoustic') {
+        kick = new Tone.MembraneSynth({ pitchDecay: 0.04, octaves: 5,
+          envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.15 },
+          volume: -8 }).connect(comp);
+      }
+      // ambient: no percussion
+
+      // ── chord progressions: 8-bar phrase per mood (A-A-B-A) ─────────────
+      // All in C major. CCM/inspirational friendly.
       const progressions = {
-        lofi:     [['C4','E4','G4','B4'], ['A3','C4','E4','G4'],
-                   ['D4','F4','A4','C5'], ['G3','B3','D4','F4']],   // Cmaj7-Am7-Dm7-G7
-        ambient:  [['C4','E4','G4'], ['A3','C4','E4'],
-                   ['F3','A3','C4'], ['G3','B3','D4']],             // I-vi-IV-V
-        acoustic: [['C4','E4','G4'], ['G3','B3','D4'],
-                   ['A3','C4','E4'], ['F3','A3','C4']],             // I-V-vi-IV
+        // Cmaj7-Am7-Dm7-G7 | Cmaj7-Am7-Fmaj7-G7
+        lofi: [
+          { chord: ['C4','E4','G4','B4'], root: 'C2' },
+          { chord: ['A3','C4','E4','G4'], root: 'A1' },
+          { chord: ['D4','F4','A4','C5'], root: 'D2' },
+          { chord: ['G3','B3','D4','F4'], root: 'G1' },
+          { chord: ['C4','E4','G4','B4'], root: 'C2' },
+          { chord: ['A3','C4','E4','G4'], root: 'A1' },
+          { chord: ['F3','A3','C4','E4'], root: 'F1' },
+          { chord: ['G3','B3','D4','F4'], root: 'G1' },
+        ],
+        // I-vi-IV-V | I-vi-IV-V (gentle hymn-like)
+        ambient: [
+          { chord: ['C4','E4','G4'], root: 'C2' },
+          { chord: ['A3','C4','E4'], root: 'A1' },
+          { chord: ['F3','A3','C4'], root: 'F1' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+          { chord: ['C4','E4','G4'], root: 'C2' },
+          { chord: ['A3','C4','E4'], root: 'A1' },
+          { chord: ['F3','A3','C4'], root: 'F1' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+        ],
+        // I-V-vi-IV | I-V-vi-IV (pop-folk·worship intro feel)
+        acoustic: [
+          { chord: ['C4','E4','G4'], root: 'C2' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+          { chord: ['A3','C4','E4'], root: 'A1' },
+          { chord: ['F3','A3','C4'], root: 'F1' },
+          { chord: ['C4','E4','G4'], root: 'C2' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+          { chord: ['F3','A3','C4'], root: 'F1' },
+          { chord: ['G3','B3','D4'], root: 'G1' },
+        ],
       };
-      const chords = progressions[mood] || progressions.ambient;
-      const barSec = 4;   // 4 seconds per chord (slow, BGM-friendly)
+      const phrase = progressions[mood] || progressions.ambient;
+
+      const barSec = 4;
       const bars = Math.ceil(totalSec / barSec);
 
-      // Optional kick on every bar 1 + hi-hat on offbeats for lofi.
-      let kick, hat;
-      if (drumOpt.kick) {
-        kick = new Tone.MembraneSynth({ volume: -6 }).connect(masterRawOut);
-      }
-      if (drumOpt.hat) {
-        hat = new Tone.NoiseSynth({
-          noise: { type: 'white' },
-          envelope: { attack: 0.001, decay: 0.05, sustain: 0 },
-          volume: -22,
-        }).connect(masterRawOut);
-      }
+      // Deterministic seeded LCG for per-note velocity / micro-variation.
+      let lcg = (seed | 0) || 1;
+      const rnd = () => {
+        lcg = (lcg * 1103515245 + 12345) & 0x7fffffff;
+        return (lcg & 0xffff) / 0xffff;
+      };
+      const vel = () => 0.55 + 0.35 * rnd();   // 0.55..0.9
 
-      const now = Tone.now() + 0.1;
+      const startAt = Tone.now() + 0.15;
       for (let i = 0; i < bars; i++) {
-        const t = now + i * barSec;
-        const chord = chords[i % chords.length];
-        // Sustained chord (Ambient/Acoustic) or arpeggio (Lo-Fi)
+        const t = startAt + i * barSec;
+        const slot = phrase[i % phrase.length];
+
+        // Bass — sustains the root for the full bar (lifts on the last beat
+        // for movement on the lofi path).
+        bass.triggerAttackRelease(slot.root,
+          mood === 'lofi' ? barSec * 0.85 : barSec * 0.95, t, vel());
+        if (mood === 'lofi') {
+          // walking bass passing tone on beat 4
+          const next = phrase[(i + 1) % phrase.length].root;
+          bass.triggerAttackRelease(next, 0.4, t + barSec - 0.4, 0.55);
+        }
+
         if (mood === 'ambient') {
-          instrument.triggerAttackRelease(chord, barSec * 0.95, t);
+          // Sustained chord + pad layer one octave higher for shimmer
+          lead.triggerAttackRelease(slot.chord, barSec * 0.92, t, vel());
+          if (pad) {
+            const padNotes = slot.chord.map((n) =>
+              Tone.Frequency(n).transpose(12).toNote());
+            pad.triggerAttackRelease(padNotes, barSec * 0.92, t, 0.5);
+          }
         } else if (mood === 'acoustic') {
-          // Arpeggio: 8th notes through chord
-          chord.forEach((note, idx) => {
-            instrument.triggerAttackRelease(note, 0.45, t + idx * 0.5);
-          });
-          // Repeat upper note for fills
-          for (let k = 0; k < 4; k++) {
-            instrument.triggerAttackRelease(
-              chord[(k + 1) % chord.length], 0.45, t + 2 + k * 0.5
-            );
+          // 8th-note arpeggio over 2 bars (full chord + extensions)
+          const notes = slot.chord;
+          for (let k = 0; k < 8; k++) {
+            const note = notes[k % notes.length];
+            lead.triggerAttackRelease(note, 0.42, t + k * 0.5, vel());
           }
         } else { // lofi
-          // Sustained pad on root + 3 + 5, arpeggio top tone
-          instrument.triggerAttackRelease([chord[0], chord[1]],
-                                           barSec * 0.95, t);
-          for (let k = 0; k < 8; k++) {
-            instrument.triggerAttackRelease(
-              chord[(k + 2) % chord.length], 0.25, t + k * 0.5
-            );
+          // Sustained mid-pad + sparse top-note "bell" arpeggio
+          lead.triggerAttackRelease(
+            [slot.chord[0], slot.chord[1]], barSec * 0.9, t, 0.6);
+          const top = slot.chord.slice(2);
+          // Lazy 1-and-3 placement, with grace-note pickup on bar 2 of phrase
+          const positions = (i % 2 === 0) ? [0, 1.5, 2, 3]
+                                          : [0.5, 1, 2.5, 3.5];
+          for (let k = 0; k < positions.length; k++) {
+            lead.triggerAttackRelease(
+              top[k % top.length], 0.7, t + positions[k], vel());
           }
         }
-        if (kick) kick.triggerAttackRelease('C2', 0.2, t);
-        if (kick) kick.triggerAttackRelease('C2', 0.2, t + 2);
+
+        // Drums — pattern per mood.
+        if (kick && mood === 'lofi') {
+          // Classic lofi: kick on 1, soft kick on 3
+          kick.triggerAttackRelease('C2', 0.25, t, 0.85);
+          kick.triggerAttackRelease('C2', 0.25, t + 2, 0.7);
+        } else if (kick && mood === 'acoustic') {
+          // Single soft kick on 1, every 2 bars (sparse)
+          if (i % 2 === 0) kick.triggerAttackRelease('C2', 0.2, t, 0.7);
+        }
         if (hat) {
+          // 8th-note hi-hat with offbeat accent
           for (let k = 0; k < 8; k++) {
-            if (k % 2 === 1) hat.triggerAttackRelease(0.05, t + k * 0.5);
+            const vol = (k % 2 === 1) ? 0.08 : 0.04;
+            hat.triggerAttackRelease(0.04, t + k * 0.5, vol);
           }
+        }
+        if (rim && i % 2 === 1) {
+          // Side-stick rim on beat 2 and 4 of even bars (jazz-lofi feel)
+          rim.triggerAttackRelease('C5', 0.05, t + 1, 0.4);
+          rim.triggerAttackRelease('C5', 0.05, t + 3, 0.4);
         }
       }
 
       const stop = () => {
-        try { instrument.releaseAll?.(); } catch {}
-        try { instrument.dispose?.(); } catch {}
-        try { kick?.dispose?.(); hat?.dispose?.(); verb?.dispose?.();
-              masterRawOut?.dispose?.(); } catch {}
+        try { lead.releaseAll?.(); } catch {}
+        try { pad?.releaseAll?.(); } catch {}
+        try { lead.dispose?.(); pad?.dispose?.(); bass.dispose?.();
+              kick?.dispose?.(); hat?.dispose?.(); rim?.dispose?.();
+              verb.dispose?.(); comp.dispose?.(); eq.dispose?.();
+              masterOut.dispose?.(); } catch {}
       };
       return { stream: dest.stream, stop, mood };
     }

@@ -81,8 +81,33 @@ python3 -m http.server 8000
 - 본 사이트는 라이선스를 검증하지 않는다.
 - 자동 YouTube 업로드 0 — 사용자가 직접 게시.
 
+## 부록: CCM·인스피레이션 음악 합법 출처 (v0.3에서 UI에도 추가됨)
+
+본 사이트는 음악을 **자동으로 가져오거나 삽입하지 않는다** (브라우저 외 전송
+0 원칙). 인기 CCM 대부분 (Hillsong·Bethel·Elevation·Maverick City·국내 메이저
+CCM 등)은 **CCLI 등 상업 라이선스 보호곡**이라 무단 사용 시 YouTube Content
+ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하며 SNS·YouTube
+게시는 별도 라이선스 필요.
+
+본인 권리 있는 트랙(본인 작곡·구매·발행권)만 사용. 없으시면 아래에서 직접
+다운로드 후 음악 슬롯에 선택:
+
+| 출처 | 라이선스 | 메모 |
+|---|---|---|
+| [YouTube Audio Library](https://www.youtube.com/audiolibrary) | Google 운영·YouTube 게시 안전 | 장르 필터 "Christian"·"Inspirational" — **가장 안전** |
+| [Pixabay Music](https://pixabay.com/music/) | Pixabay 라이선스 (상업 OK) | 검색 "worship"·"praise"·"hymn" |
+| [Free Music Archive](https://freemusicarchive.org/) | CC0·CC-BY·CC-BY-SA 등 | 트랙별 라이선스 명시 확인 |
+| [ccMixter](https://ccmixter.org/) | CC 라이선스 | 검색 "worship" |
+| [Bensound](https://www.bensound.com/) | Free (크레딧) 또는 구매 | "Inspirational" 카테고리 |
+| [Hymnary.org](https://hymnary.org/) | Public Domain 찬송가 | 녹음 자체는 별도 확인 |
+
+크레딧 권장: 영상 설명(③)에 출처 한 줄.
+
 ## 변경 노트
 
+- **v0.3 (2026-05-25)** — CCM·인스피레이션 합법 무료 음악 출처 카탈로그 6개
+  추가 (UI details 박스 + README 부록). 자동 fetch/삽입 0 (브라우저 외 전송
+  0 유지·INVARIANT 보존). 부모 정본 0 변경. 코드 의존 0.
 - **v0.2 (2026-05-25)** — mp4 폴백 webm·음악 입력 (Web Audio + MediaStreamDestination)·
   트렌디 lex textarea + LocalStorage·메타데이터 JSON 동시 산출. 부모 D2/D14/D5/v1.1
   정신 통합. 의존 0 유지.

@@ -74,6 +74,15 @@
 - **D-meta (메타 산출)**: 부모 `draft_metadata` 동형 JSON 별 다운로드. 영상에
   메타 임베드는 안 함 (mp4 metadata box 변경 = ffmpeg/별 라이브러리 필요).
 
+### v0.3 결정 (2026-05-25)
+
+- **D-music-catalog**: "자동 음악 선택·삽입" 사용자 요청 — 결정표면 4안
+  (P/Q/R/S) 중 **안 R (합법 무료 음악 출처 카탈로그 추가)** 채택. 이유:
+  자동 fetch는 INVARIANT 'no upload'·부모 v1.2 D2/D14·저작권 (CCM 인기곡
+  대부분 CCLI 상업 보호) 동시 위반. 카탈로그 안내는 사용자의 *출처 발견 부담*만
+  해소하며 다운로드는 사용자 본인이 직접. UI details 박스 + README 부록. 자동
+  매칭/삽입 기능 추가 **0**. CCLI 안내 명시 (예배 사용만 커버·SNS 별도).
+
 ### 잔존 (별 turn)
 
 - **D3-web (자동 게시)**: 영원히 없음 — 부모 PRD §3.2 동형. 변경 0.
@@ -99,6 +108,9 @@
 
 ## 변경 노트
 
+- **v0.3 (2026-05-25)** — CCM·인스피레이션 합법 무료 음악 출처 카탈로그 추가
+  (UI details + README 부록). 자동 fetch/삽입 0 (INVARIANT 'no upload' 보존).
+  부모 정본 0 수정. 텍스트 link만 (의존 0 유지).
 - **v0.2 (2026-05-25)** — 음악 입력 (Web Audio + MediaStreamDestination) ·
   트렌디 lex textarea + LocalStorage · 메타데이터 JSON 동시 산출 · mp4 폴백 webm.
   부모 D2/D5/D14/D16/v1.1 정신 통합. 의존 0 유지·INVARIANT 'no upload' 자가

@@ -168,6 +168,32 @@
   </details>
 
   <details>
+    <summary>🎬 컷 사이 트랜지션 (v0.8 — 인트로/크로스페이드/페이드 블랙/아웃트로)</summary>
+    <div style="font-size:0.9rem;color:inherit;line-height:1.6">
+      <p>
+        v0.8부터 컷이 단순 cut으로 붙지 않고 *부드러운 트랜지션*으로 연결됩니다.
+        BGM 무드(켜져 있을 때)에 맞춰 자동 선택:
+      </p>
+      <ul>
+        <li><strong>Ambient (예배·잔잔)</strong>: 1.0초 크로스페이드 (느리고
+            깊은 호흡감) + 0.8초 인트로/아웃트로 페이드</li>
+        <li><strong>Lo-Fi (재즈 BGM)</strong>: 0.6초 크로스페이드 + <em>3컷마다
+            한 번씩</em> 0.4초 "페이드 블랙" (시네마틱 호흡) + 0.6초 인트로/아웃트로</li>
+        <li><strong>Acoustic (밝은 일상)</strong>: 0.4초 빠른 크로스페이드 +
+            0.4초 짧은 인트로/아웃트로</li>
+        <li><strong>BGM OFF (기본)</strong>: 0.5초 인트로/아웃트로 + 0.6초
+            중간 크로스페이드</li>
+      </ul>
+      <p>
+        총 영상 길이가 트랜지션만큼 늘어납니다 — 인트로 + 모든 컷 + 컷 사이
+        트랜지션 + 아웃트로. 음악(자동 BGM·본인 파일 모두) 길이는 자동 조정.
+        메타 JSON `transitions` 필드에 사용된 프로파일과 페이드 블랙이 들어간
+        컷 번호가 기록됩니다.
+      </p>
+    </div>
+  </details>
+
+  <details>
     <summary>🎶 자동 BGM이란 무엇인가요? (v0.7 — 4단계 품질 폴백)</summary>
     <div style="font-size:0.9rem;color:inherit;line-height:1.6">
       <p>
@@ -293,7 +319,6 @@
     }
 
     function drawCoverCrop(ctx, img) {
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
       const sR = img.width / img.height, dR = W / H;
       let sx, sy, sw, sh;
       if (sR > dR) { sh = img.height; sw = sh * dR;
@@ -301,6 +326,137 @@
       else         { sw = img.width;  sh = sw / dR;
                      sx = 0; sy = (img.height - sh) / 2; }
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+    }
+
+    function clearFrame(ctx) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // ── v0.8 transition system ─────────────────────────────────────────────
+    // Profiles are picked by BGM mood (or a neutral default when BGM is off).
+    // All times in seconds.
+    const TRANSITION_PROFILES = {
+      ambient:  { intro: 0.8, outro: 0.8, trans: 1.0,
+                  blackEvery: 0,  blackDuration: 0 },
+      lofi:     { intro: 0.6, outro: 0.6, trans: 0.6,
+                  blackEvery: 3,  blackDuration: 0.4 },
+      acoustic: { intro: 0.4, outro: 0.4, trans: 0.4,
+                  blackEvery: 0,  blackDuration: 0 },
+      _default: { intro: 0.5, outro: 0.5, trans: 0.6,
+                  blackEvery: 0,  blackDuration: 0 },
+    };
+
+    function pickTransitionProfile(mood, wantBgm) {
+      if (wantBgm && TRANSITION_PROFILES[mood]) return TRANSITION_PROFILES[mood];
+      return TRANSITION_PROFILES._default;
+    }
+
+    // Given total elapsed time `t`, compute which phase the renderer is in.
+    // Returns one of:
+    //   {kind:'intro', alpha}
+    //   {kind:'cut', i}
+    //   {kind:'cross', i, blend}                  // 0..1 from img[i] → img[i+1]
+    //   {kind:'fadeBlack', i, blend}              // 0..1 with mid-point dip to black
+    //   {kind:'outro', alpha}
+    //   {kind:'done'}
+    function resolvePhase(t, n, perCut, prof, blackBars) {
+      if (n <= 0) return { kind: 'done' };
+      // Intro window
+      if (t < prof.intro) return { kind: 'intro', alpha: t / prof.intro };
+      const afterIntro = t - prof.intro;
+      const trans = prof.trans;
+      // Each "slot" = perCut + trans (except the final cut has no trailing trans)
+      // We organize by starting offset of each cut's *full hold* portion.
+      // Cut i's hold starts at i * (perCut + trans), runs for perCut seconds,
+      // then a transition of length `trans` (or `blackDuration` if it's the
+      // designated black-fade slot) follows. Final cut has no trailing trans.
+      let offset = 0;
+      for (let i = 0; i < n; i++) {
+        const isLast = (i === n - 1);
+        // Hold portion of cut i
+        const holdEnd = offset + perCut;
+        if (afterIntro < holdEnd) {
+          return { kind: 'cut', i };
+        }
+        if (isLast) {
+          // After last cut's hold → outro window
+          const afterHold = afterIntro - holdEnd;
+          if (afterHold < prof.outro) {
+            return { kind: 'outro', alpha: 1 - afterHold / prof.outro };
+          }
+          return { kind: 'done' };
+        }
+        // Transition between cut i and cut i+1
+        const useBlackHere = blackBars.has(i);
+        const tlen = useBlackHere ? prof.blackDuration : trans;
+        const transEnd = holdEnd + tlen;
+        if (afterIntro < transEnd) {
+          const blend = (afterIntro - holdEnd) / tlen;
+          return useBlackHere
+            ? { kind: 'fadeBlack', i, blend }
+            : { kind: 'cross', i, blend };
+        }
+        offset = transEnd;
+      }
+      return { kind: 'done' };
+    }
+
+    function totalTimeWithTransitions(n, perCut, prof, blackBars) {
+      if (n <= 0) return 0;
+      let total = prof.intro;
+      for (let i = 0; i < n; i++) {
+        total += perCut;
+        if (i < n - 1) {
+          total += blackBars.has(i) ? prof.blackDuration : prof.trans;
+        }
+      }
+      total += prof.outro;
+      return total;
+    }
+
+    function planBlackTransitions(n, prof) {
+      // Set of cut indices i such that the transition BETWEEN i and i+1 uses
+      // the fade-through-black style. Empty if profile says blackEvery == 0.
+      const out = new Set();
+      if (!prof.blackEvery || prof.blackEvery <= 0) return out;
+      for (let i = prof.blackEvery - 1; i < n - 1; i += prof.blackEvery) {
+        out.add(i);
+      }
+      return out;
+    }
+
+    function drawPhase(ctx, images, phase) {
+      clearFrame(ctx);
+      if (phase.kind === 'done') return;
+      if (phase.kind === 'intro') {
+        ctx.globalAlpha = phase.alpha;
+        drawCoverCrop(ctx, images[0]);
+        ctx.globalAlpha = 1;
+      } else if (phase.kind === 'cut') {
+        drawCoverCrop(ctx, images[phase.i]);
+      } else if (phase.kind === 'cross') {
+        drawCoverCrop(ctx, images[phase.i]);
+        ctx.globalAlpha = phase.blend;
+        drawCoverCrop(ctx, images[phase.i + 1]);
+        ctx.globalAlpha = 1;
+      } else if (phase.kind === 'fadeBlack') {
+        // First half: outgoing image fades to black; second half: incoming
+        // image emerges from black. Result: a brief beat of pure black at
+        // the midpoint (cinematic punctuation).
+        if (phase.blend < 0.5) {
+          ctx.globalAlpha = 1 - phase.blend * 2;
+          drawCoverCrop(ctx, images[phase.i]);
+        } else {
+          ctx.globalAlpha = (phase.blend - 0.5) * 2;
+          drawCoverCrop(ctx, images[phase.i + 1]);
+        }
+        ctx.globalAlpha = 1;
+      } else if (phase.kind === 'outro') {
+        ctx.globalAlpha = phase.alpha;
+        drawCoverCrop(ctx, images[images.length - 1]);
+        ctx.globalAlpha = 1;
+      }
     }
 
     function pickMime() {
@@ -888,7 +1044,12 @@
         runBtn.disabled = false; return;
       }
 
-      const total = images.length * perCut;
+      // v0.8: total time now includes intro, per-cut hold, transitions, outro.
+      // BGM length and metadata are derived from this composite total.
+      const transProfile = pickTransitionProfile(mood, wantBgm);
+      const blackBars = planBlackTransitions(images.length, transProfile);
+      const total = totalTimeWithTransitions(
+        images.length, perCut, transProfile, blackBars);
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
@@ -941,7 +1102,8 @@
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       const done = new Promise((res) => { rec.onstop = () => res(); });
 
-      drawCoverCrop(ctx, images[0]);
+      // Prime the first frame (intro start = full black + alpha 0 image).
+      clearFrame(ctx);
       rec.start(250);
       const t0 = performance.now();
 
@@ -951,16 +1113,28 @@
             ? `🎶 자동 BGM (${audioMode.split(':').slice(1).join(' · ')})`
             : '🔇 무음';
 
-      for (let i = 0; i < images.length; i++) {
-        drawCoverCrop(ctx, images[i]);
-        const target = (i + 1) * perCut;
-        while ((performance.now() - t0) / 1000 < target) {
-          await new Promise((r) => setTimeout(r, 30));
-          drawCoverCrop(ctx, images[i]);
-          const e = ((performance.now() - t0) / 1000);
-          setStatus(`녹화 중… ${e.toFixed(1)}s / ${total.toFixed(1)}s · 컷 ${i + 1}/${images.length} · ${audioBadge}`);
-        }
+      // v0.8: per-frame render loop driven by resolvePhase. Each frame
+      // computes the current transition phase from elapsed time and draws
+      // the appropriate composite (intro fade, hold, crossfade, fade-black,
+      // outro fade). Frame cadence ~33ms matches 30fps capture.
+      const frameMs = Math.max(16, Math.round(1000 / fps));
+      while (true) {
+        const e = (performance.now() - t0) / 1000;
+        if (e >= total) break;
+        const phase = resolvePhase(e, images.length, perCut, transProfile, blackBars);
+        if (phase.kind === 'done') break;
+        drawPhase(ctx, images, phase);
+        const label = phase.kind === 'intro'    ? '인트로 페이드'
+                    : phase.kind === 'outro'    ? '아웃트로 페이드'
+                    : phase.kind === 'cross'    ? `컷 ${phase.i + 1}→${phase.i + 2} 크로스페이드`
+                    : phase.kind === 'fadeBlack' ? `컷 ${phase.i + 1}→${phase.i + 2} 페이드 블랙`
+                    : `컷 ${(phase.i ?? 0) + 1}/${images.length}`;
+        setStatus(`녹화 중… ${e.toFixed(1)}s / ${total.toFixed(1)}s · ${label} · ${audioBadge}`);
+        await new Promise((r) => setTimeout(r, frameMs));
       }
+      // Final black tail
+      clearFrame(ctx);
+      await new Promise((r) => setTimeout(r, frameMs));
       rec.stop();
       await done;
       try { audioCtx?.close(); } catch {}
@@ -971,6 +1145,8 @@
       preview.src = videoUrl;
 
       const hashtags = buildHashtags(lexKws);
+      const transProfileName = (wantBgm && TRANSITION_PROFILES[mood])
+        ? mood : 'default';
       const meta = {
         title: memo ? memo.slice(0, 90)
                     : '오늘의 기록 | 사진과 영상으로 만든 쇼츠',
@@ -979,13 +1155,20 @@
           : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷.`,
         hashtags,
         ai_disclosure: audioMode.startsWith('bgm:'),   // procedural BGM = AI-generated
-        source: `shorts-forge-browser v0.4 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode})`,
+        source: `shorts-forge-browser v0.8 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName})`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
         audio_source: audioMode === 'owner' ? audioFile.name : audioMode,
         duration_sec: Math.round(total),
         cuts: images.length,
         container_mime: mime,
+        transitions: {
+          profile: transProfileName,
+          intro_sec: transProfile.intro,
+          outro_sec: transProfile.outro,
+          crossfade_sec: transProfile.trans,
+          fade_black_cuts: [...blackBars].map((i) => i + 1),  // 1-indexed for humans
+        },
         generated_at: new Date().toISOString(),
       };
       const metaBlob = new Blob([JSON.stringify(meta, null, 2)],

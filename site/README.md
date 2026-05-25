@@ -105,6 +105,13 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v0.8 (2026-05-25)** — 컷 사이 트랜지션 시스템 도입 (인트로 페이드 인·
+  크로스페이드·페이드 블랙·아웃트로 페이드 아웃). Canvas 2D alpha 합성·
+  외부 라이브러리 0. BGM 무드 자동 매칭 (ambient=1.0초 깊은 crossfade·
+  lofi=0.6초 + 3컷마다 페이드 블랙·acoustic=0.4초 빠른 crossfade·BGM
+  OFF=0.5초 기본). 총 영상 길이가 트랜지션만큼 늘어남·음악 길이 자동
+  조정. 메타 JSON에 `transitions` 필드 추가 (프로파일·인트로/아웃트로/
+  크로스페이드 시간·페이드 블랙이 들어간 컷 번호).
 - **v0.7 (2026-05-25)** — Magenta **ImprovRNN** (chord-conditioned melody·
   `chord_pitches_improv` 체크포인트·~5-10MB 추가) 도입. v0.6 멜로디의 가장
   큰 약점(우리 화성과 무관한 random sample)을 직접 해소 — 우리 lofi/ambient/

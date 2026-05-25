@@ -103,6 +103,21 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v0.8 결정 (2026-05-25)
+
+- **D-transitions**: 사용자 "컷과 컷 사이에 여러 페이드 인/페이드 아웃 효과를
+  적절히" 요청. 단순 cut → 트랜지션 시스템 도입. Canvas 2D `globalAlpha`
+  기반 per-frame composite (외부 라이브러리 0).
+- **D-transition-profile**: BGM 무드와 자동 매칭 — ambient=1.0초 crossfade·
+  lofi=0.6초 crossfade + 3컷마다 0.4초 fade-through-black·acoustic=0.4초
+  crossfade·BGM OFF=0.5초 기본. 사용자 입력 0 추가(UI 단순 유지).
+- **D-time-accounting**: 총 시간 = intro + N×perCut + (N−1)×trans + outro.
+  BGM 합성 길이와 메타 JSON `duration_sec`도 이 총 시간 따름.
+- **D-no-cdn**: CDN 추가 0·v0.7 INVARIANT 보존(코드 라이브러리·정적 자원
+  외 fetch 0). 자동 fetch 토큰 0건 자가검증 유지.
+- **잔존 (별 turn)**: Ken Burns(컷 안 micro-motion)·slide/wipe 트랜지션·
+  사용자 직접 프로파일 선택 UI·트랜지션 길이 사용자 조절.
+
 ### v0.7 결정 (2026-05-25)
 
 - **D-melody-chord-conditioned**: 사용자 "멜로디 더 좋게·인터넷 음악 학습"
@@ -187,6 +202,12 @@
 
 ## 변경 노트
 
+- **v0.8 (2026-05-25)** — 컷 사이 트랜지션 시스템 도입. Canvas 2D alpha-
+  blend per-frame composite (외부 라이브러리 0). BGM 무드와 자동 매칭 —
+  ambient=1.0초 crossfade·lofi=0.6초 crossfade + 3컷마다 페이드 블랙·
+  acoustic=0.4초 crossfade. 인트로/아웃트로 페이드. 메타 JSON
+  `transitions` 필드 추가. 총 시간/BGM 길이 자동 재계산. CDN 추가 0·
+  INVARIANT 보존.
 - **v0.7 (2026-05-25)** — Magenta ImprovRNN(`chord_pitches_improv` 체크포인트·
   ~5-10MB 추가) 도입. chord-conditioned 멜로디 생성으로 v0.6의 무관한
   random sample 문제 해소. 5단계 fallback (T1+/T1/T2/T3/silent). 우리

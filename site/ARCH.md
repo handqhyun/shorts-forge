@@ -103,6 +103,24 @@
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
 
+### v1.1 결정 (2026-05-25)
+
+- **D-video-full-duration**: 사용자 "동영상은 컷당 초 영향 안 받고 전부
+  들어간다" 명시. v1.0의 video-clamp-to-perCut 정책 *번복*. video cut hold
+  = `video.duration` (clamp [0.6초, 10분]). image cut hold = perCut 유지.
+- **D-per-cut-hold-refactor**: resolvePhase + totalTimeWithTransitions가
+  단일 perCut 인자 대신 `holdSecs` 배열을 받음. v0.8 transition system은
+  per-cut 시간을 *데이터*로 다루는 일관된 구조로 일반화.
+- **D-safety-clamp**: video hold 안전 클램프(min 0.6초·max 10분). 매우
+  짧은 영상이 트랜지션보다 짧지 않도록·매우 긴 영상이 브라우저 메모리
+  고갈 안 일으키도록. 사용자 의도 "전체"는 *대부분 사례에서* 그대로
+  적용·극단값만 클램프.
+- **D-meta-hold-disclosure**: `media_order` 각 항목에 `hold_sec` 추가 —
+  사용자가 메타 JSON에서 실제 사용된 길이를 확인 가능.
+- **D-no-cdn**: CDN 변경 0. INVARIANT 보존(v1.0과 동일·자가검증 통과).
+- **잔존 (별 turn)**: 동영상 일부 구간만 사용(start/end trim)·여러 동영상
+  사이 BPM/음악 sync·내용 분석 기반 정렬.
+
 ### v1.0 결정 (2026-05-25)
 
 - **D-video-input**: 사용자 "동영상 삽입 가능하게" 요청. `<input
@@ -248,6 +266,10 @@
 
 ## 변경 노트
 
+- **v1.1 (2026-05-25)** — 동영상 hold 시간 = 자기 duration 전체 (v1.0의
+  perCut clamp 번복). resolvePhase/totalTimeWithTransitions를 per-cut
+  holdSecs 배열로 일반화. 안전 클램프 [0.6초, 10분]. 메타 JSON
+  media_order에 hold_sec 기록. CDN 변경 0·INVARIANT 보존.
 - **v1.0 (2026-05-25)** — 동영상 입력 지원 (사진+동영상 혼재)·EXIF 기반
   자동 시간순 정렬 (exifr CDN ~10KB 추가)·동영상 음향 항상 mute (음악
   우선 정책)·video element 관리 (play/pause per cut·currentTime 0 리셋)·

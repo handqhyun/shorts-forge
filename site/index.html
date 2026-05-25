@@ -121,7 +121,7 @@
   <div class="card">
     <div class="row">
       <div>
-        <label for="seconds">⑤ 컷당 초 (1.0–6.0)</label>
+        <label for="seconds">⑤ 사진 한 장당 초 (1.0–6.0)</label>
         <input id="seconds" type="number" value="3" min="1" max="6" step="0.5" />
       </div>
       <div>
@@ -129,6 +129,8 @@
         <input id="fps" type="number" value="30" min="15" max="60" step="1" />
       </div>
     </div>
+    <div class="hint">동영상은 이 값과 무관하게 <strong>자기 길이대로 전부</strong>
+                      재생됩니다 (v1.1). 사진만 한 장당 위 초만큼 표시.</div>
   </div>
 
   <button id="run">▶ 영상 만들기</button>
@@ -199,10 +201,15 @@
         동영상 음향을 살리는 옵션은 별 turn 결정 잔존.
       </p>
       <p>
-        <strong>동영상 길이</strong>: 각 동영상은 컷당 초 (⑤번 입력) 만큼만
-        재생됩니다 — 동영상이 더 길면 그 시간에서 잘리고, 짧으면 마지막
-        프레임이 정지됩니다. 상태 줄에 🖼/🎬 아이콘으로 현재 컷이 사진인지
-        동영상인지 표시됩니다.
+        <strong>동영상 길이 (v1.1)</strong>: 각 동영상은 ⑤번 "사진 한 장당
+        초"와 무관하게 <em>자기 길이 전체</em>가 사용됩니다 — 30초짜리 영상은
+        영상 컷이 30초 차지하고, 1분짜리는 1분 차지합니다. 사진만 ⑤번 값으로
+        한 장당 표시. 상태 줄에 🖼/🎬 아이콘으로 현재 컷 종류 표시, 메타 JSON
+        `media_order`의 각 항목에 `hold_sec` (실제 사용된 길이) 기록.
+      </p>
+      <p>
+        <strong>최대 안전 한도</strong>: 동영상 1개당 최대 10분으로 자동
+        클램프(브라우저 메모리 안정성). 그 이상 영상은 10분에서 잘림.
       </p>
       <p>
         <strong>내용 기반 정렬</strong>(밝기·채도·색·얼굴 등 분석)은 별 turn
@@ -541,44 +548,30 @@
       return TRANSITION_PROFILES._default;
     }
 
-    // Given total elapsed time `t`, compute which phase the renderer is in.
-    // Returns one of:
-    //   {kind:'intro', alpha}
-    //   {kind:'cut', i}
-    //   {kind:'cross', i, blend}                  // 0..1 from img[i] → img[i+1]
-    //   {kind:'fadeBlack', i, blend}              // 0..1 with mid-point dip to black
-    //   {kind:'outro', alpha}
-    //   {kind:'done'}
-    function resolvePhase(t, n, perCut, prof, blackBars) {
+    // v1.1: per-cut hold durations let videos run for their full length
+    // while photos still use the user's "seconds per photo" value.
+    // Given total elapsed `t`, compute which phase the renderer is in.
+    function resolvePhase(t, holdSecs, prof, blackBars) {
+      const n = holdSecs.length;
       if (n <= 0) return { kind: 'done' };
-      // Intro window
       if (t < prof.intro) return { kind: 'intro', alpha: t / prof.intro };
       const afterIntro = t - prof.intro;
-      const trans = prof.trans;
-      // Each "slot" = perCut + trans (except the final cut has no trailing trans)
-      // We organize by starting offset of each cut's *full hold* portion.
-      // Cut i's hold starts at i * (perCut + trans), runs for perCut seconds,
-      // then a transition of length `trans` (or `blackDuration` if it's the
-      // designated black-fade slot) follows. Final cut has no trailing trans.
       let offset = 0;
       for (let i = 0; i < n; i++) {
         const isLast = (i === n - 1);
-        // Hold portion of cut i
-        const holdEnd = offset + perCut;
+        const holdEnd = offset + holdSecs[i];
         if (afterIntro < holdEnd) {
           return { kind: 'cut', i };
         }
         if (isLast) {
-          // After last cut's hold → outro window
           const afterHold = afterIntro - holdEnd;
           if (afterHold < prof.outro) {
             return { kind: 'outro', alpha: 1 - afterHold / prof.outro };
           }
           return { kind: 'done' };
         }
-        // Transition between cut i and cut i+1
         const useBlackHere = blackBars.has(i);
-        const tlen = useBlackHere ? prof.blackDuration : trans;
+        const tlen = useBlackHere ? prof.blackDuration : prof.trans;
         const transEnd = holdEnd + tlen;
         if (afterIntro < transEnd) {
           const blend = (afterIntro - holdEnd) / tlen;
@@ -591,11 +584,12 @@
       return { kind: 'done' };
     }
 
-    function totalTimeWithTransitions(n, perCut, prof, blackBars) {
+    function totalTimeWithTransitions(holdSecs, prof, blackBars) {
+      const n = holdSecs.length;
       if (n <= 0) return 0;
       let total = prof.intro;
       for (let i = 0; i < n; i++) {
-        total += perCut;
+        total += holdSecs[i];
         if (i < n - 1) {
           total += blackBars.has(i) ? prof.blackDuration : prof.trans;
         }
@@ -1418,12 +1412,21 @@
       const photoCount = media.filter((m) => m.kind === 'image').length;
       const videoCount = media.filter((m) => m.kind === 'video').length;
 
-      // v0.8: total time now includes intro, per-cut hold, transitions, outro.
-      // BGM length and metadata are derived from this composite total.
+      // v1.1: cut-level hold durations.
+      //   photo  → perCut seconds (user input)
+      //   video  → full clip duration (with safety clamps)
+      const VIDEO_MIN_HOLD = 0.6;     // a transition shouldn't dominate
+      const VIDEO_MAX_HOLD = 600;     // 10 minutes safety bound per cut
+      const holdSecs = media.map((m) => {
+        if (m.kind === 'video') {
+          const d = Number.isFinite(m.dur) && m.dur > 0 ? m.dur : perCut;
+          return Math.max(VIDEO_MIN_HOLD, Math.min(d, VIDEO_MAX_HOLD));
+        }
+        return perCut;
+      });
       const transProfile = pickTransitionProfile(mood, wantBgm);
       const blackBars = planBlackTransitions(images.length, transProfile);
-      const total = totalTimeWithTransitions(
-        images.length, perCut, transProfile, blackBars);
+      const total = totalTimeWithTransitions(holdSecs, transProfile, blackBars);
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
@@ -1495,7 +1498,7 @@
       while (true) {
         const e = (performance.now() - t0) / 1000;
         if (e >= total) break;
-        const phase = resolvePhase(e, images.length, perCut, transProfile, blackBars);
+        const phase = resolvePhase(e, holdSecs, transProfile, blackBars);
         if (phase.kind === 'done') break;
 
         // v1.0: figure out which cut(s) are currently visible — drive video
@@ -1555,7 +1558,7 @@
           : `직접 찍은 사진과 영상을 모아 만든 약 ${Math.round(total)}초 세로 영상입니다. 편하게 봐 주세요.\n\n총 ${images.length}개 컷 (사진 ${photoCount}·동영상 ${videoCount}).`,
         hashtags,
         ai_disclosure: audioMode.startsWith('bgm:'),
-        source: `shorts-forge-browser v1.0 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount})`,
+        source: `shorts-forge-browser v1.1 (mime=${mime}; lex_size=${lexKws.length}; description_seed=${memo ? 'owner' : 'fallback'}; audio=${audioMode}; transitions=${transProfileName}; sort=chronological_exif+mtime; photos=${photoCount}; videos=${videoCount}; video_hold=full_duration)`,
         lex_size: lexKws.length,
         description_seed_used: !!memo,
         audio_source: audioMode === 'owner' ? audioFile.name : audioMode,
@@ -1563,10 +1566,11 @@
         cuts: images.length,
         photos: photoCount,
         videos: videoCount,
-        media_order: media.map((m) => ({
+        media_order: media.map((m, i) => ({
           kind: m.kind,
           name: m.file.name,
           ts: new Date(m.ts).toISOString(),
+          hold_sec: Math.round(holdSecs[i] * 100) / 100,
         })),
         container_mime: mime,
         transitions: {

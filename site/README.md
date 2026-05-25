@@ -105,6 +105,14 @@ ID 클레임·법적 책임 발생. CCLI는 *교회 예배 사용*만 커버하�
 
 ## 변경 노트
 
+- **v0.6 (2026-05-25)** — Salamander Grand Piano sampler + Magenta MusicVAE
+  도입. BGM 토글 ON + [영상 만들기] 첫 클릭 시 lazy load (~3-5MB 피아노
+  샘플·~10-20MB Magenta 모델·1회). 4단계 폴백 체인(T1: ML 멜로디+진짜
+  피아노·T2: procedural+진짜 피아노·T3: v0.5 FMSynth). 어떤 단계 실패해도
+  BGM 반드시 산출. 메타 JSON `source`에 tier 명시. CDN은 코드·정적
+  오디오 샘플·ML 모델 가중치만 받음(사용자 콘텐츠 송신 0·자동 fetch
+  토큰 0건 자가검증). **모바일 첫 로드 ~30-60초**·iOS Safari TFJS 호환성
+  사용자 검증 필요.
 - **v0.5 (2026-05-25)** — BGM 품질 ↑ (procedural 정교화·CDN 추가 0): 이펙트
   체인(Reverb·Chorus·Compressor·EQ3·FeedbackDelay lofi only)·베이스 라인 추가
   (MonoSynth sine 1옥타브 아래·lofi 워킹 베이스 passing tone)·8바 phrase

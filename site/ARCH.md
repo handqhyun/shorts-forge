@@ -102,12 +102,29 @@
   (MonoSynth 1옥타브 아래) (3) 8바 phrase A-A-B-A 변주 (4) 모드별 instrument
   차별화(lofi=FMSynth e-piano·ambient=Synth+AMSynth pad layer·acoustic=FMSynth
   bright). dynamics = seeded LCG velocity 0.55-0.9. 결정론 보존.
-- **D-cdn-sample 보류**: Salamander Grand Piano sample pack (~5MB CDN
-  download) 도입은 *v0.5 안정성 확인 후* 별 turn. 모바일 첫-로드 시간·sample
-  pack URL 안정성·offline-after-load 시나리오 영향 검증 필요.
-- **D-ml-model 보류**: Magenta MusicVAE 도입도 동일 이유로 v0.5에서 보류.
-- **잔존 (별 turn)**: Salamander Sampler 도입·Magenta MusicVAE·BPM 옵션·
-  키 옵션 (C major 외)·다중 모드 mix·사진 컷에 동기 화성 전환.
+
+### v0.6 결정 (2026-05-25)
+
+- **D-piano-sampler**: 사용자 명시 "1번(Salamander) + 2번(Magenta) 모두 도입"
+  요청 (v0.5 모바일 동작 검증 후). Salamander Grand Piano (CC0·9음 subset
+  ~3-5MB·Tone.js GitHub Pages 호스팅) 도입 채택. Tone.Sampler로 통합 — 모든
+  무드에서 lead instrument = 진짜 피아노.
+- **D-ml-melody**: Magenta MusicVAE (`mel_2bar_small` 체크포인트·Google
+  magentadata storage) 도입 채택. NoteSequence → C major transpose → Tone
+  스케줄. 2바 sample 여러 개 concatenate로 영상 길이 cover.
+- **D-fallback-chain**: 4단계 견고한 폴백 (T1: Magenta+Salamander·T2:
+  Salamander only·T3: v0.5 procedural). 어느 단계에서 실패해도 BGM 반드시
+  산출. `_enhancementCache`로 lazy load 1회만.
+- **D-cdn-policy-update**: INVARIANT 'no upload' 보존 *유지* — CDN은 코드
+  라이브러리·정적 오디오 샘플·ML 모델 가중치(모두 공개 정적 자원)만 받음.
+  사용자 콘텐츠는 어떤 CDN/서버에도 송신 0(자동 fetch 토큰 0건 자가검증).
+  부모 PRD §4 카브아웃 #1 ("1회 셋업 fetch") 정신 정합.
+- **모바일 리스크 명시**: 첫 로드 ~30-60초·~20MB 다운로드·iOS Safari TFJS
+  호환성 검증 못함·Magenta 유지보수 ↓(2022 이후 적극 업데이트 ↓). 견고한
+  fallback으로 위험 격리.
+- **잔존 (별 turn)**: 더 큰 Salamander subset (음역 확장)·MusicVAE
+  `mel_4bar` 모델·chord-conditioned ImprovRNN·다중 instrument sample pack·
+  BPM/키 옵션·실시간 사진 컷↔화성 동기·SaaS 음악 API 분기(별 신규 프로젝트).
 - **D-cdn**: Tone.js CDN 1개 도입 (`cdn.jsdelivr.net/npm/tone@14.7.77/...`).
   INVARIANT 'no upload' *재해석*: "사용자 콘텐츠 외부 전송 0"은 보존(불변).
   코드 라이브러리 자체의 페이지 로드 시 1회 다운로드는 부모 PRD §4
@@ -147,6 +164,11 @@
 
 ## 변경 노트
 
+- **v0.6 (2026-05-25)** — Salamander Grand Piano sampler(9음·~3-5MB)+Magenta
+  MusicVAE(`mel_2bar_small`·~10-20MB) lazy load + 4단계 fallback chain
+  (T1/T2/T3). 메타 source에 tier 명시. INVARIANT 보존(CDN=정적 자원만·사용자
+  콘텐츠 송신 0 자가검증 통과). 모바일 첫 로드 ~30-60초 가능·견고한 폴백으로
+  실패 격리. 부모 정본 0 수정.
 - **v0.5 (2026-05-25)** — BGM 품질 ↑: 이펙트 체인(Reverb·Chorus·Compressor·
   EQ3·FeedbackDelay)·베이스 라인 추가·8바 phrase A-A-B-A 변주·모드별 instrument
   차별화·dynamics(seeded LCG velocity)·드럼 패턴 차별화. CDN 추가 0·INVARIANT
